@@ -4172,6 +4172,12 @@ export interface PayPayablesListAttachmentsQuery {
   page_token?: string;
 }
 
+/** Query of `GET /v1/pay/payables/summary`. */
+export interface PayPayablesSummaryQuery {
+  /** Filtro */
+  organization_id?: string;
+}
+
 /** Routes tagged `pay · payables`. */
 export class PayPayablesResource extends Resource {
   /**
@@ -4451,6 +4457,19 @@ export class PayPayablesResource extends Resource {
    */
   settle(id: string, body: S.SettlePayableBody, options?: RequestOptions): Promise<S.FinancialOperationDto> {
     return this._http.request({ method: 'POST', path: `/v1/pay/payables/${seg(id)}/settle`, body, options });
+  }
+
+  /**
+   * Resumo da lista de títulos a pagar: contagem por status (base das abas) e
+   * saldo em aberto por moeda, contados no servidor.
+   *
+   * `GET /v1/pay/payables/summary`
+   *
+   * @param query Query string parameters.
+   * @param options Per-call overrides.
+   */
+  summary(query?: PayPayablesSummaryQuery, options?: RequestOptions): Promise<S.TitleSummaryDto> {
+    return this._http.request({ method: 'GET', path: `/v1/pay/payables/summary`, query, options });
   }
 
   /**
@@ -5243,6 +5262,14 @@ export interface PayReceivablesListAttachmentsQuery {
   page_token?: string;
 }
 
+/** Query of `GET /v1/pay/receivables/summary`. */
+export interface PayReceivablesSummaryQuery {
+  /** Filtro */
+  organization_id?: string;
+  /** Filtro pelo seu identificador de cliente final (casa exato) */
+  external_client_id?: string;
+}
+
 /** Routes tagged `pay · receivables`. */
 export class PayReceivablesResource extends Resource {
   /**
@@ -5502,6 +5529,19 @@ export class PayReceivablesResource extends Resource {
    */
   settle(id: string, body: S.SettleReceivableBody, options?: RequestOptions): Promise<S.FinancialOperationDto> {
     return this._http.request({ method: 'POST', path: `/v1/pay/receivables/${seg(id)}/settle`, body, options });
+  }
+
+  /**
+   * Resumo da lista de títulos a receber: contagem por status e saldo em
+   * aberto por moeda, contados no servidor.
+   *
+   * `GET /v1/pay/receivables/summary`
+   *
+   * @param query Query string parameters.
+   * @param options Per-call overrides.
+   */
+  summary(query?: PayReceivablesSummaryQuery, options?: RequestOptions): Promise<S.TitleSummaryDto> {
+    return this._http.request({ method: 'GET', path: `/v1/pay/receivables/summary`, query, options });
   }
 
   /**

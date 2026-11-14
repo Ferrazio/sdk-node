@@ -15510,6 +15510,16 @@
   "paginated": false
  },
  {
+  "method": "GET",
+  "path": "/v1/pay/payables/summary",
+  "namespace": [
+   "pay",
+   "payables"
+  ],
+  "name": "summary",
+  "paginated": false
+ },
+ {
   "method": "PATCH",
   "path": "/v1/pay/payables/{id}",
   "namespace": [
@@ -16027,6 +16037,16 @@
    "receivables"
   ],
   "name": "settle",
+  "paginated": false
+ },
+ {
+  "method": "GET",
+  "path": "/v1/pay/receivables/summary",
+  "namespace": [
+   "pay",
+   "receivables"
+  ],
+  "name": "summary",
   "paginated": false
  },
  {
@@ -18048,6 +18068,16 @@
    "public"
   ],
   "name": "recordSignMailOpen",
+  "paginated": false
+ },
+ {
+  "method": "GET",
+  "path": "/v1/sign/public/invite/pages",
+  "namespace": [
+   "sign",
+   "public"
+  ],
+  "name": "renderSignInvitePages",
   "paginated": false
  },
  {

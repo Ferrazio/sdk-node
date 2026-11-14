@@ -612,6 +612,14 @@ export interface SignPublicListSignDaysQuery {
   page_token?: string;
 }
 
+/** Query of `GET /v1/sign/public/invite/pages`. */
+export interface SignPublicRenderSignInvitePagesQuery {
+  /** Primeira página desenhada, a partir de 1 (padrão 1). */
+  first?: number;
+  /** Quantas páginas desenhar a partir de `first`, até 10 (padrão 10). */
+  limit?: number;
+}
+
 /** Routes tagged `sign · public`. */
 export class SignPublicResource extends Resource {
   /**
@@ -872,6 +880,25 @@ export class SignPublicResource extends Resource {
    */
   recordSignMailOpen(body: S.SignMailOpenBody, options?: RequestOptions): Promise<void> {
     return this._http.request({ method: 'POST', path: `/v1/sign/public/mail/opened`, body, responseType: 'void', auth: false, options });
+  }
+
+  /**
+   * As páginas do documento do convite como imagem.
+   *
+   * O par público de `POST /v1/sign/pages`: quem assina pelo link posiciona
+   * o próprio selo e as rubricas no app nativo. Sem sessão, pelo token do
+   * cabeçalho `X-Sign-Token`; o documento é o original do convite, com as
+   * mesmas recusas de `GET /v1/sign/public/invite/document`. Devolve o
+   * tamanho de cada página em pontos e a imagem de até 10 delas a partir de
+   * `first`, com o lado maior em até 1024 px.
+   *
+   * `GET /v1/sign/public/invite/pages` (public route, sent without credentials)
+   *
+   * @param query Query string parameters.
+   * @param options Per-call overrides. Headers of this route: `x-sign-token` (required).
+   */
+  renderSignInvitePages(query: SignPublicRenderSignInvitePagesQuery | undefined, options: RequestOptions & { headers: { "x-sign-token": string } }): Promise<S.SignPagesDto> {
+    return this._http.request({ method: 'GET', path: `/v1/sign/public/invite/pages`, query, auth: false, options });
   }
 
   /**

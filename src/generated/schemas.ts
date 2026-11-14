@@ -9444,6 +9444,11 @@ export interface CreateCardIntentBody {
   module_key?: string | null;
   /** Organização dona (vazio = escopo tenant). */
   organization_id?: string | null;
+  /**
+   * `store_purchase`: plano do módulo (compra de plano pago ou subida de
+   * plano). Ausente = o plano de entrada.
+   */
+  plan_key?: string | null;
   /** `saved_card`, `store_purchase` ou `billing_method`. */
   purpose: PayCardIntentPurpose;
   /**
@@ -12918,6 +12923,16 @@ export interface EtlValidateBody {
   plan: Record<string, unknown>;
 }
 
+/** Um campo do `data` de um evento do catálogo. */
+export interface EventFieldDto {
+  /** O que o campo significa. */
+  description: string;
+  /** Um valor real, na forma exata em que o evento o entrega. */
+  example: string;
+  /** Caminho do campo no `data` (ex.: `member.person_id`). */
+  name: string;
+}
+
 /** Um evento assinável (catálogo). */
 export interface EventTypeDto {
   /** O que o evento significa no domínio. */
@@ -12927,6 +12942,15 @@ export interface EventTypeDto {
    * lá não existe para nenhum canal.
    */
   event_type: string;
+  /** Os campos do `data` do evento, com um valor real de exemplo de cada um. */
+  fields: EventFieldDto[];
+  /** Nome de exibição do catálogo (ex.: `Pix recebido`); vazio quando o evento não está nele. */
+  label: string;
+  /**
+   * Um corpo `data` de exemplo, montado com os exemplos dos campos (o mesmo que a
+   * simulação do Flow usa); `null` quando o evento não está no catálogo.
+   */
+  sample: Record<string, unknown>;
   /** Versão do formato do evento. */
   schema_version: number;
   /** Serviço que produz o evento. */
@@ -32773,6 +32797,9 @@ export type PayTermsFineType = "percent_once" | "fixed_once" | "";
 /** Como a taxa de juros da condição é interpretada, na resposta: só documenta os valores, o fio é texto. */
 export type PayTermsInterestType = "percent_daily" | "percent_monthly" | "fixed_daily" | "";
 
+/** Status contado no resumo de títulos: os de receber e os de pagar (o fio é texto). */
+export type PayTitleSummaryStatus = "open" | "partial" | "paid" | "overdue" | "canceled" | "refunded" | "pending_approval" | "rejected";
+
 /** Como os dias grátis do cupom somam ao teste do plano: só documenta os valores, o fio é texto. */
 export type PayTrialStacking = "add" | "max";
 
@@ -47639,6 +47666,38 @@ export interface TitleCommentDto {
   updated_at: string | null;
   /** Snowflake decimal do autor. */
   user_id: string;
+}
+
+/**
+ * Saldo em aberto de uma moeda: soma de `amount - paid_amount` dos títulos
+ * `open`, `partial` e `overdue`.
+ */
+export interface TitleOpenTotalDto {
+  /** Quantidade de títulos em aberto. */
+  count: number;
+  /** Moeda ISO 4217. */
+  currency: string;
+  /** Valor em aberto como string decimal (nunca float). */
+  open_amount: string;
+}
+
+/**
+ * Quantidade de títulos num status (status derivado, como na listagem:
+ * `overdue` inclui o título aberto já vencido).
+ */
+export interface TitleStatusCountDto {
+  /** Quantidade. */
+  count: number;
+  /** Status. */
+  status: PayTitleSummaryStatus;
+}
+
+/** Resumo de uma lista de títulos, contado no servidor. */
+export interface TitleSummaryDto {
+  /** Contagem por status. */
+  counts: TitleStatusCountDto[];
+  /** Saldo em aberto por moeda. */
+  open: TitleOpenTotalDto[];
 }
 
 /** O que o cliente manda para recarregar o saldo. */

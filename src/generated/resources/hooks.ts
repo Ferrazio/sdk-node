@@ -136,7 +136,8 @@ export class HooksResource extends Resource {
    * Descoberta de eventos assináveis (canal webhook).
    *
    * Devolve o catálogo de tipos de evento que uma subscription pode assinar, opcionalmente
-   * filtrado por `prefix`. Cada item traz `source`, `schema_version` e descrição.
+   * filtrado por `prefix`. Cada item traz `source`, `schema_version`, descrição, o nome de
+   * exibição, os campos do `data` com exemplo e um corpo de exemplo (`sample`).
    *
    * `GET /v1/hooks/event-types`
    *

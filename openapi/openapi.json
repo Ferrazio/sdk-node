@@ -6007,6 +6007,15 @@
       }
      },
      {
+      "name": "event_id",
+      "in": "query",
+      "description": "Busca direta pelo id do write-event (o link de uma alteração)",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
       "name": "page_size",
       "in": "query",
       "description": "Tamanho da página",
@@ -92568,7 +92577,7 @@
      "hooks"
     ],
     "summary": "`GET /v1/hooks/event-types` - descoberta de eventos assináveis (canal webhook).",
-    "description": "Devolve o catálogo de tipos de evento que uma subscription pode assinar, opcionalmente\nfiltrado por `prefix`. Cada item traz `source`, `schema_version` e descrição.",
+    "description": "Devolve o catálogo de tipos de evento que uma subscription pode assinar, opcionalmente\nfiltrado por `prefix`. Cada item traz `source`, `schema_version`, descrição, o nome de\nexibição, os campos do `data` com exemplo e um corpo de exemplo (`sample`).",
     "operationId": "hooks_list_event_types",
     "parameters": [
      {
@@ -204852,6 +204861,123 @@
     ]
    }
   },
+  "/v1/pay/payables/summary": {
+   "get": {
+    "tags": [
+     "pay · payables"
+    ],
+    "summary": "Resumo da lista de títulos a pagar: contagem por status (base das abas) e\nsaldo em aberto por moeda, contados no servidor.",
+    "operationId": "pay_payables_summary",
+    "parameters": [
+     {
+      "name": "organization_id",
+      "in": "query",
+      "description": "Filtro",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Resumo",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TitleSummaryDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Query string inválida: tipo incompatível, chave repetida ou percent-encoding quebrado. Recusada no extrator, antes do handler, com o envelope canônico. Recusa de negócio sobre um filtro válido sai do handler.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Módulo `pay` não contratado pelo tenant/organização da sessão. Se a contratação não puder ser conferida, a resposta é 503, nunca 402..",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "O membro da sessão não tem a ação `pay.contas-pagar.titulo.read` no RBAC, ou a API key usada não a tem no escopo. O portão é fail-closed: operação fora de `` e fora das dispensas também recebe 403.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Recurso inexistente no escopo do tenant/organização da sessão, **ou** sessão ausente/expirada/inválida. A borda responde 404 opaco a toda falha de autenticação por antienumeração: um 401 confirmaria ao atacante que a rota existe e exige sessão.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
   "/v1/pay/payables/{id}": {
    "get": {
     "tags": [
@@ -213303,6 +213429,132 @@
      },
      "503": {
       "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/pay/receivables/summary": {
+   "get": {
+    "tags": [
+     "pay · receivables"
+    ],
+    "summary": "Resumo da lista de títulos a receber: contagem por status e saldo em\naberto por moeda, contados no servidor.",
+    "operationId": "pay_receivables_summary",
+    "parameters": [
+     {
+      "name": "organization_id",
+      "in": "query",
+      "description": "Filtro",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "external_client_id",
+      "in": "query",
+      "description": "Filtro pelo seu identificador de cliente final (casa exato)",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Resumo",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TitleSummaryDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Query string inválida: tipo incompatível, chave repetida ou percent-encoding quebrado. Recusada no extrator, antes do handler, com o envelope canônico. Recusa de negócio sobre um filtro válido sai do handler.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Módulo `pay` não contratado pelo tenant/organização da sessão. Se a contratação não puder ser conferida, a resposta é 503, nunca 402..",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "O membro da sessão não tem a ação `pay.contas-receber.titulo.read` no RBAC, ou a API key usada não a tem no escopo. O portão é fail-closed: operação fora de `` e fora das dispensas também recebe 403.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Recurso inexistente no escopo do tenant/organização da sessão, **ou** sessão ausente/expirada/inválida. A borda responde 404 opaco a toda falha de autenticação por antienumeração: um 401 confirmaria ao atacante que a rota existe e exige sessão.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
       "content": {
        "application/json": {
         "schema": {
@@ -254557,6 +254809,131 @@
      },
      "503": {
       "description": "Fila de montagem de pacotes cheia: tente de novo em instantes",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/sign/public/invite/pages": {
+   "get": {
+    "tags": [
+     "sign · public"
+    ],
+    "summary": "`GET /v1/sign/public/invite/pages` - as páginas do documento do convite como imagem.",
+    "description": "O par público de `POST /v1/sign/pages`: quem assina pelo link posiciona\no próprio selo e as rubricas no app nativo. Sem sessão, pelo token do\ncabeçalho `X-Sign-Token`; o documento é o original do convite, com as\nmesmas recusas de `GET /v1/sign/public/invite/document`. Devolve o\ntamanho de cada página em pontos e a imagem de até 10 delas a partir de\n`first`, com o lado maior em até 1024 px.",
+    "operationId": "sign_public_render_sign_invite_pages",
+    "parameters": [
+     {
+      "name": "x-sign-token",
+      "in": "header",
+      "description": "Token do convite",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "first",
+      "in": "query",
+      "description": "Primeira página desenhada, a partir de 1 (padrão 1).",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "format": "int32",
+       "minimum": 0
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "description": "Quantas páginas desenhar a partir de `first`, até 10 (padrão 10).",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "format": "int32",
+       "minimum": 0
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Tamanho de cada pagina do documento do convite e a imagem das pedidas",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SignPagesDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Query string inválida: tipo incompatível, chave repetida ou percent-encoding quebrado. Recusada no extrator, antes do handler, com o envelope canônico. Recusa de negócio sobre um filtro válido sai do handler.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Token ausente, desconhecido ou trocado por um lembrete; envelope cancelado, recusado ou vencido; ou concluido ha mais de 90 dias",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Campo invalido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Teto por origem da rota",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
       "content": {
        "application/json": {
         "schema": {
@@ -339944,6 +340321,14 @@
       "description": "Organização dona (vazio = escopo tenant).",
       "maxLength": 64
      },
+     "plan_key": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "`store_purchase`: plano do módulo (compra de plano pago ou subida de\nplano). Ausente = o plano de entrada.",
+      "maxLength": 128
+     },
      "purpose": {
       "$ref": "#/components/schemas/PayCardIntentPurpose",
       "description": "`saved_card`, `store_purchase` ou `billing_method`."
@@ -347669,6 +348054,29 @@
     },
     "additionalProperties": false
    },
+   "EventFieldDto": {
+    "type": "object",
+    "description": "Um campo do `data` de um evento do catálogo.",
+    "required": [
+     "name",
+     "description",
+     "example"
+    ],
+    "properties": {
+     "description": {
+      "type": "string",
+      "description": "O que o campo significa."
+     },
+     "example": {
+      "type": "string",
+      "description": "Um valor real, na forma exata em que o evento o entrega."
+     },
+     "name": {
+      "type": "string",
+      "description": "Caminho do campo no `data` (ex.: `member.person_id`)."
+     }
+    }
+   },
    "EventTypeDto": {
     "type": "object",
     "description": "Um evento assinável (catálogo).",
@@ -347676,7 +348084,10 @@
      "event_type",
      "source",
      "schema_version",
-     "description"
+     "description",
+     "label",
+     "fields",
+     "sample"
     ],
     "properties": {
      "description": {
@@ -347686,6 +348097,21 @@
      "event_type": {
       "type": "string",
       "description": "Nome do evento no catálogo, que é a fonte única da verdade: evento não declarado\nlá não existe para nenhum canal."
+     },
+     "fields": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/EventFieldDto"
+      },
+      "description": "Os campos do `data` do evento, com um valor real de exemplo de cada um."
+     },
+     "label": {
+      "type": "string",
+      "description": "Nome de exibição do catálogo (ex.: `Pix recebido`); vazio quando o evento não está nele."
+     },
+     "sample": {
+      "type": "object",
+      "description": "Um corpo `data` de exemplo, montado com os exemplos dos campos (o mesmo que a\nsimulação do Flow usa); `null` quando o evento não está no catálogo."
      },
      "schema_version": {
       "type": "integer",
@@ -398016,6 +398442,20 @@
      ""
     ]
    },
+   "PayTitleSummaryStatus": {
+    "type": "string",
+    "description": "Status contado no resumo de títulos: os de receber e os de pagar (o fio é texto).",
+    "enum": [
+     "open",
+     "partial",
+     "paid",
+     "overdue",
+     "canceled",
+     "refunded",
+     "pending_approval",
+     "rejected"
+    ]
+   },
    "PayTrialStacking": {
     "type": "string",
     "description": "Como os dias grátis do cupom somam ao teste do plano: só documenta os valores, o fio é texto.",
@@ -433929,6 +434369,73 @@
      "user_id": {
       "type": "string",
       "description": "Snowflake decimal do autor."
+     }
+    }
+   },
+   "TitleOpenTotalDto": {
+    "type": "object",
+    "description": "Saldo em aberto de uma moeda: soma de `amount - paid_amount` dos títulos\n`open`, `partial` e `overdue`.",
+    "required": [
+     "currency",
+     "count",
+     "open_amount"
+    ],
+    "properties": {
+     "count": {
+      "type": "integer",
+      "format": "int64",
+      "description": "Quantidade de títulos em aberto."
+     },
+     "currency": {
+      "type": "string",
+      "description": "Moeda ISO 4217."
+     },
+     "open_amount": {
+      "type": "string",
+      "description": "Valor em aberto como string decimal (nunca float)."
+     }
+    }
+   },
+   "TitleStatusCountDto": {
+    "type": "object",
+    "description": "Quantidade de títulos num status (status derivado, como na listagem:\n`overdue` inclui o título aberto já vencido).",
+    "required": [
+     "status",
+     "count"
+    ],
+    "properties": {
+     "count": {
+      "type": "integer",
+      "format": "int64",
+      "description": "Quantidade."
+     },
+     "status": {
+      "$ref": "#/components/schemas/PayTitleSummaryStatus",
+      "description": "Status."
+     }
+    }
+   },
+   "TitleSummaryDto": {
+    "type": "object",
+    "description": "Resumo de uma lista de títulos, contado no servidor.",
+    "required": [
+     "counts",
+     "open"
+    ],
+    "properties": {
+     "counts": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/TitleStatusCountDto"
+      },
+      "description": "Contagem por status."
+     },
+     "open": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/TitleOpenTotalDto"
+      },
+      "description": "Saldo em aberto por moeda."
      }
     }
    },

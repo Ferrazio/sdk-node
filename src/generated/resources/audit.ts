@@ -67,6 +67,8 @@ export interface AuditListWriteEventsQuery {
   occurred_from?: string;
   /** Instante máximo (RFC 3339), exclusive */
   occurred_to?: string;
+  /** Busca direta pelo id do write-event (o link de uma alteração) */
+  event_id?: string;
   /** Tamanho da página */
   page_size?: number;
   /** Cursor opaco da página anterior */

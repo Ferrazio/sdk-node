@@ -1,7 +1,7 @@
 # Referência da API
 
 Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`).
-2284 operações. `fz` é uma instância de `Ferrazio`. Métodos com `*All` percorrem todas as páginas.
+2287 operações. `fz` é uma instância de `Ferrazio`. Métodos com `*All` percorrem todas as páginas.
 
 ## fz.archive
 
@@ -2241,6 +2241,7 @@ Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`
 | `previewInstallment` | `POST /v1/pay/installments/preview` | Pré-visualiza o plano de parcelas (não persiste). Permite à UI editar antes de salvar. |
 | `setAllocations` | `PUT /v1/pay/payables/{id}/allocations` | Define/substitui (replace-whole-set) o rateio de um título a pagar. |
 | `settle` | `POST /v1/pay/payables/{id}/settle` | Realiza a baixa (pagamento) de um título a pagar. |
+| `summary` | `GET /v1/pay/payables/summary` | Resumo da lista de títulos a pagar: contagem por status (base das abas) e saldo em aberto por moeda, contados no servidor. |
 | `update` | `PATCH /v1/pay/payables/{id}` | Atualiza parcialmente um título a pagar (PATCH). |
 | `updateSeries` | `POST /v1/pay/payables/{id}/series` | Atualiza em lote parcelas `open`/`overdue` da mesma série. |
 
@@ -2318,6 +2319,7 @@ Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`
 | `refund` | `POST /v1/pay/receivables/{id}/refund` | Estorna (devolve) um título a receber já pago. |
 | `setAllocations` | `PUT /v1/pay/receivables/{id}/allocations` | Define/substitui (replace-whole-set) o rateio de um título a receber. |
 | `settle` | `POST /v1/pay/receivables/{id}/settle` | Realiza a baixa (pagamento) de um título a receber. |
+| `summary` | `GET /v1/pay/receivables/summary` | Resumo da lista de títulos a receber: contagem por status e saldo em aberto por moeda, contados no servidor. |
 | `update` | `PATCH /v1/pay/receivables/{id}` | Atualiza parcialmente um título a receber (PATCH). |
 | `updateSeries` | `POST /v1/pay/receivables/{id}/series` | Atualiza em lote parcelas `open`/`overdue` da mesma série. |
 
@@ -2648,6 +2650,7 @@ Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`
 | `pairSignAgent` | `POST /v1/sign/public/agent/pair` (pública) | O agente local entra com o código da página. |
 | `prepareSignIcp` | `POST /v1/sign/public/invite/icp/prepare` (pública) | Prepara a assinatura com certificado ICP-Brasil. |
 | `recordSignMailOpen` | `POST /v1/sign/public/mail/opened` (pública) | A imagem de 1 pixel de um e-mail do Assinador carregou. Quem chama é a rota da imagem no front, que devolve o pixel sem esperar a resposta. |
+| `renderSignInvitePages` | `GET /v1/sign/public/invite/pages` (pública) | As páginas do documento do convite como imagem. |
 | `requestSignCode` | `POST /v1/sign/public/invite/code` (pública) | Manda o código de confirmação ao e-mail do signatário. |
 | `requestSignCopy` | `POST /v1/sign/public/verify` (pública) | Pede a cópia de um envelope pelo código do relatório e pelo e-mail de um signatário. |
 | `requestSignIcpAgentSignature` | `POST /v1/sign/public/invite/icp/agent/request` (pública) | Pede ao agente a assinatura de uma preparação. |
