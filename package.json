@@ -1,6 +1,6 @@
 {
   "name": "@ferrazio/sdk",
-  "version": "7.9.1",
+  "version": "7.9.2",
   "description": "Official Node.js SDK for the Ferrazio API",
   "license": "MIT",
   "repository": {
