@@ -15,11 +15,11 @@ describe('normalizeSpec', () => {
 
   test('drops internal record and backlog codes from prose, keeps standards and machine fields', () => {
     const text = JSON.stringify({
-      paths: { '/v1/x': { get: { operationId: 'API-PAY-04', summary: 'Lista (ADR-0183 D11).', description: 'Paginada (`RES-118`, ADR-0150 D6) em UTF-8, hash SHA-256 (authorize.rs).' } } },
+      paths: { '/v1/x': { get: { operationId: 'ABC-XY-03', summary: 'Lista (ADR-0001 D2).', description: 'Paginada (`ABC-12`, ADR-0002 D3) em UTF-8, hash SHA-256 (handler.rs).' } } },
       info: { title: 'T', description: 'Redis', contact: { email: 'x@y' } },
     });
     const spec = normalizeSpec(text);
-    expect(spec.paths['/v1/x'].get).toEqual({ operationId: 'API-PAY-04', summary: 'Lista.', description: 'Paginada em UTF-8, hash SHA-256.' });
+    expect(spec.paths['/v1/x'].get).toEqual({ operationId: 'ABC-XY-03', summary: 'Lista.', description: 'Paginada em UTF-8, hash SHA-256.' });
     expect(spec.info.contact).toBeUndefined();
     expect(spec.info.description).not.toContain('Redis');
   });

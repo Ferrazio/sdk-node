@@ -14,9 +14,9 @@ export const METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const;
  */
 const STANDARD_CODES = new Set(['SHA', 'ISO', 'UTF', 'RFC', 'EAN', 'NR', 'YYYY', 'MM', 'DD', 'CH', 'PRETO']);
 
-/** A design-record citation with its optional section list: `ADR-0183 D11`, `ADR 0343 D4`, `ADR-0233 E49`. */
+/** A design-record citation with its optional section list: `ADR-0001 D2`, `ADR 0002 D3`, `ADR-0003 E4`. */
 const RECORD = String.raw`ADR[- ]?\d{3,4}(?:(?:[ -]|\s)?[A-Z]\d{1,3}(?:\s*(?:,|e|a|-|/)\s*[A-Z]?\d{1,3})*)?(?::[^)\n"]*)?`;
-/** A backlog or review code: `RES-118`, `API-PAY-04`, `SV-69`, `MA16`-style codes stay. */
+/** A backlog or review code: `ABC-12`, `ABC-XY-03`; standards such as `SHA-256` stay. */
 const TICKET = String.raw`\b([A-Z]{2,5})(?:-[A-Z]{2,4})?-\d{1,4}[a-z]?\b`;
 
 /**
