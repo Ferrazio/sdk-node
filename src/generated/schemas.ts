@@ -9728,6 +9728,7 @@ export interface CreateCheckoutBody {
    * pedido que a originou.
    */
   origin_module?: string | null;
+  payer?: PayerRegistrationBody | null;
   /**
    * A **ficha**: o que esta cesta pergunta ao pagador.
    *
@@ -9740,10 +9741,10 @@ export interface CreateCheckoutBody {
    */
   payer_form?: CheckoutFormFieldBody[] | null;
   /**
-   * Pagador conhecido (Snowflake decimal).
+   * Pagador conhecido (Snowflake decimal): a cesta **nominal**.
    *
-   * Obrigatório nesta entrega: a cesta **aberta** exige criar pessoa no
-   * `iam` a partir do que o pagador digita, e essa porta ainda não existe.
+   * Ausente, junto com `payer`, é a cesta **aberta**: quem paga digita o
+   * cadastro na página, e a pessoa nasce no pagamento.
    */
   person_id?: string | null;
   /**

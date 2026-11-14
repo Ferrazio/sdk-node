@@ -340781,6 +340781,17 @@
       "description": "Módulo que mandou montar a cesta (`catalog`, `pos`, `marketplace`...).\n\nVem em par com `Self::origin_id`: os **dois** juntos ou nenhum. É o que\npermite, depois do pagamento, chegar do título à cesta e da cesta ao\npedido que a originou.",
       "maxLength": 32
      },
+     "payer": {
+      "oneOf": [
+       {
+        "$ref": "#/components/schemas/PayerRegistrationBody",
+        "description": "Pagador **avulso** digitado por quem cria a cesta: nome, CPF/CNPJ e\ne-mail obrigatórios, telefone e endereço quando o método pede.\n\nExclui `person_id`. O serviço acha a pessoa pelo documento ou a cria, e\na cesta nasce nominal, com a mesma conferência de cadastro da cesta com\n`person_id`: o cadastro que não serve a algum método da cesta recusa com\n`400` aqui, e não na página do pagador. A pessoa achada **não** é\nalterada pelo que foi digitado.\n\nÉ o caminho para cobrar no cartão quem não está cadastrado sem que a\ntela toque no cartão: o pagador digita os dados do cartão na página\nhospedada."
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
      "payer_form": {
       "type": [
        "array",
@@ -340797,7 +340808,7 @@
        "string",
        "null"
       ],
-      "description": "Pagador conhecido (Snowflake decimal).\n\nObrigatório nesta entrega: a cesta **aberta** exige criar pessoa no\n`iam` a partir do que o pagador digita, e essa porta ainda não existe.",
+      "description": "Pagador conhecido (Snowflake decimal): a cesta **nominal**.\n\nAusente, junto com `payer`, é a cesta **aberta**: quem paga digita o\ncadastro na página, e a pessoa nasce no pagamento.",
       "maxLength": 64
      },
      "plan_id": {
