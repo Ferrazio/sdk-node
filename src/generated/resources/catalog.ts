@@ -1359,7 +1359,7 @@ export class CatalogProductsResource extends Resource {
 
 /** Query of `GET /v1/catalog/resolve`. */
 export interface CatalogResolveResolveItemQuery {
-  /** Código lido: GTIN, cProd do fornecedor ou SKU interno */
+  /** Código lido: GTIN, cProd do fornecedor, SKU interno (sem olhar caixa) ou código do modelo */
   code: string;
   /** Presente quando a origem é uma nota - habilita o de-para */
   supplier_person_id?: string;

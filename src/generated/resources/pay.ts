@@ -4476,7 +4476,9 @@ export class PayPayablesResource extends Resource {
    * Atualiza parcialmente um título a pagar (PATCH).
    *
    * Retorna `200 OK` com o `AccountsPayableDto` atualizado.
-   * Retorna `404` se não encontrado. Retorna `412` se o status não permite update.
+   * Retorna `404` se não encontrado. Retorna `412` se o status não permite update
+   * ou se a nova `posting_date` cai num período fechado. Retorna `400` se o
+   * vencimento efetivo ficar antes da emissão.
    *
    * `PATCH /v1/pay/payables/{id}`
    *

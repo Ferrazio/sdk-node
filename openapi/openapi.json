@@ -33105,7 +33105,7 @@
      {
       "name": "code",
       "in": "query",
-      "description": "Código lido: GTIN, cProd do fornecedor ou SKU interno",
+      "description": "Código lido: GTIN, cProd do fornecedor, SKU interno (sem olhar caixa) ou código do modelo",
       "required": true,
       "schema": {
        "type": "string"
@@ -77573,6 +77573,141 @@
    }
   },
   "/v1/fiscal/dfe/sync": {
+   "get": {
+    "tags": [
+     "fiscal · distribuição DF-e"
+    ],
+    "summary": "Lê o estado da busca automática de um interessado, sem alterar nada.",
+    "description": "Diz se a busca automática de documentos recebidos está ligada para o CNPJ no\nambiente, até que NSU já foi lido e quando foi a última consulta ao Ambiente\nNacional.\n\nBusca que nunca foi ligada volta desligada, com NSU zero e `last_polled_at`\nnulo: não é erro.",
+    "operationId": "fiscal_distribuicao_df_e_get_sync",
+    "parameters": [
+     {
+      "name": "cnpj",
+      "in": "query",
+      "description": "CNPJ interessado (14 dígitos)",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "environment",
+      "in": "query",
+      "description": "Ambiente: `production` | `homologation`",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Estado do cursor de sincronização",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DfeSyncStateDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Ambiente desconhecido (`invalid_query`)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Módulo `fiscal` não contratado pelo tenant/organização da sessão. Se a contratação não puder ser conferida, a resposta é 503, nunca 402..",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "O membro da sessão não tem a ação `fiscal.dfe.read` no RBAC, ou a API key usada não a tem no escopo. O portão é fail-closed: operação fora de `` e fora das dispensas também recebe 403.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Recurso inexistente no escopo do tenant/organização da sessão, **ou** sessão ausente/expirada/inválida. A borda responde 404 opaco a toda falha de autenticação por antienumeração: um 401 confirmaria ao atacante que a rota existe e exige sessão.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "CNPJ fora da forma",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   },
    "put": {
     "tags": [
      "fiscal · distribuição DF-e"
@@ -205090,7 +205225,7 @@
      "pay · payables"
     ],
     "summary": "Atualiza parcialmente um título a pagar (PATCH).",
-    "description": "Retorna `200 OK` com o `AccountsPayableDto` atualizado.\nRetorna `404` se não encontrado. Retorna `412` se o status não permite update.",
+    "description": "Retorna `200 OK` com o `AccountsPayableDto` atualizado.\nRetorna `404` se não encontrado. Retorna `412` se o status não permite update\nou se a nova `posting_date` cai num período fechado. Retorna `400` se o\nvencimento efetivo ficar antes da emissão.",
     "operationId": "pay_payables_update",
     "parameters": [
      {
@@ -205125,7 +205260,7 @@
       }
      },
      "400": {
-      "description": "JSON sintaticamente malformado: envelope canônico com o motivo `malformed_json`. O detalhe do parser é omitido de propósito, para não revelar o que foi parcialmente aceito.",
+      "description": "Entrada inválida, ou vencimento antes da emissão",
       "content": {
        "application/json": {
         "schema": {
@@ -205165,7 +205300,7 @@
       }
      },
      "412": {
-      "description": "Status inválido para update",
+      "description": "Status inválido para update, ou lançamento em período fiscal fechado",
       "content": {
        "application/json": {
         "schema": {
@@ -263855,6 +263990,614 @@
     ]
    }
   },
+  "/v1/social/connections/{id}/instagram-login": {
+   "post": {
+    "tags": [
+     "social"
+    ],
+    "summary": "Abre o navegador da casa na tela de login do Instagram para ligar a\nconexão `instagram_session` `id`.",
+    "description": "É o login do pool com a conexão no lugar da conta: a conta do pool fica\ncom o id da conexão, e no fim a sessão grava e a conexão fica conectada.\nPede a permissão de vincular conexão, não a de comprar captação. Um login\npor organização de cada vez: abrir outro encerra o anterior.",
+    "operationId": "social_start_connection_instagram_login",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "description": "Id da conexao instagram_session",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StartConnectionInstagramLoginBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Login aberto, esperando o navegador",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InstagramLoginDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "JSON sintaticamente malformado: envelope canônico com o motivo `malformed_json`. O detalhe do parser é omitido de propósito, para não revelar o que foi parcialmente aceito.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Modulo social nao contratado",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Sem a acao social.connection.link",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Conexao inexistente, de outra organizacao ou que nao e instagram_session",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "A conta do Instagram esta em outra conexao (code instagram_account_on_other_connection) ou em outra organizacao (code instagram_account_in_use)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "412": {
+      "description": "Conexao ja ligada (code connection_already_linked) ou login anterior sendo conferido (code login_in_progress)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "413": {
+      "description": "Corpo acima do teto de payload de API, recusado pelo gateway ANTES de qualquer leitura. Não vira 422 de propósito: o servidor não desserializou nada, então não há campo a apontar. O teto de upload do cofre (`/v1/archive/files`) é outro, e maior, porque ali o corpo é o arquivo. Sai o envelope canônico com o motivo `payload_too_large`, recusado pela camada ou pelo extrator.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "415": {
+      "description": "`Content-Type: application/json` ausente ou diferente. Separado do 400 para o cliente saber o que corrigir sem ambiguidade.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Sem o aceite do risco (accept_meta_risk) ou sem organizacao",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/social/connections/{id}/instagram-login/{login_id}": {
+   "get": {
+    "tags": [
+     "social"
+    ],
+    "summary": "O estado do login da conexão e a tela do navegador.",
+    "description": "Igual ao do pool, mas só alcança o login aberto por esta conexão.",
+    "operationId": "social_get_connection_instagram_login",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "description": "Id da conexao instagram_session",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "login_id",
+      "in": "path",
+      "description": "Id do login",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "after_seq",
+      "in": "query",
+      "description": "A ultima tela que quem pergunta ja tem",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "format": "int64",
+       "minimum": 0
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "O login e, quando mudou, a tela",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InstagramLoginDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Query string inválida: tipo incompatível, chave repetida ou percent-encoding quebrado. Recusada no extrator, antes do handler, com o envelope canônico. Recusa de negócio sobre um filtro válido sai do handler.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Modulo social nao contratado",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Sem a acao social.connection.link",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Login que nao existe mais ou que nao e desta conexao",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   },
+   "delete": {
+    "tags": [
+     "social"
+    ],
+    "summary": "Fecha o navegador do login da conexão sem guardar nada.",
+    "description": "Pode ser repetido sem efeito novo.",
+    "operationId": "social_cancel_connection_instagram_login",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "description": "Id da conexao instagram_session",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "login_id",
+      "in": "path",
+      "description": "Id do login",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Login fechado sem guardar nada",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InstagramLoginDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Modulo social nao contratado",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Sem a acao social.connection.link",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Login que nao existe mais ou que nao e desta conexao",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/social/connections/{id}/instagram-login/{login_id}/input": {
+   "post": {
+    "tags": [
+     "social"
+    ],
+    "summary": "Cliques e teclas da pessoa, repassados ao navegador do login da conexão.",
+    "description": "Vão no corpo, e não na query, porque o texto é a senha da conta.",
+    "operationId": "social_send_connection_instagram_login_input",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "description": "Id da conexao instagram_session",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "login_id",
+      "in": "path",
+      "description": "Id do login",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SendInstagramLoginInputBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Acoes na fila do navegador",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InstagramLoginDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "JSON sintaticamente malformado: envelope canônico com o motivo `malformed_json`. O detalhe do parser é omitido de propósito, para não revelar o que foi parcialmente aceito.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Modulo social nao contratado",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Sem a acao social.connection.link",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Login que nao existe mais ou que nao e desta conexao",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "412": {
+      "description": "Login que ja terminou (code login_finished)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "413": {
+      "description": "Corpo acima do teto de payload de API, recusado pelo gateway ANTES de qualquer leitura. Não vira 422 de propósito: o servidor não desserializou nada, então não há campo a apontar. O teto de upload do cofre (`/v1/archive/files`) é outro, e maior, porque ali o corpo é o arquivo. Sai o envelope canônico com o motivo `payload_too_large`, recusado pela camada ou pelo extrator.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "415": {
+      "description": "`Content-Type: application/json` ausente ou diferente. Separado do 400 para o cliente saber o que corrigir sem ambiguidade.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Acao invalida",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
   "/v1/social/connections/{id}/link": {
    "get": {
     "tags": [
@@ -264487,6 +265230,279 @@
      },
      "503": {
       "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/social/connections/{id}/public-links": {
+   "get": {
+    "tags": [
+     "social"
+    ],
+    "summary": "Os links públicos de vínculo de uma conexão.",
+    "operationId": "social_list_public_links",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "description": "Id da conexao",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Os links publicos de vinculo da conexao (ate 50, do mais novo)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SocialPublicLinksDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Modulo social nao contratado",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Sem a acao social.connection.link",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Conexao inexistente ou de outro tenant",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   },
+   "post": {
+    "tags": [
+     "social"
+    ],
+    "summary": "Cria um link público de vínculo.",
+    "description": "Só no WhatsApp não oficial. Quem abre o link vê só o QR (ou o código) e a\nsituação da conexão, e vincula o próprio aparelho sem conta. O token volta\n**uma vez**; depois só o hash existe.",
+    "operationId": "social_create_public_link",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "description": "Id da conexao",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SocialCreatePublicLinkBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "O link, com o token que so volta agora",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SocialPublicLinkCreatedDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "JSON sintaticamente malformado: envelope canônico com o motivo `malformed_json`. O detalhe do parser é omitido de propósito, para não revelar o que foi parcialmente aceito.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Modulo social nao contratado",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Sem a acao social.connection.link",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Conexao inexistente ou de outro tenant",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "412": {
+      "description": "Conexao ja vinculada (code connection_already_linked), links abertos demais (share_link_limit) ou provider sem QR (unsupported_capability)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "413": {
+      "description": "Corpo acima do teto de payload de API, recusado pelo gateway ANTES de qualquer leitura. Não vira 422 de propósito: o servidor não desserializou nada, então não há campo a apontar. O teto de upload do cofre (`/v1/archive/files`) é outro, e maior, porque ali o corpo é o arquivo. Sai o envelope canônico com o motivo `payload_too_large`, recusado pela camada ou pelo extrator.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "415": {
+      "description": "`Content-Type: application/json` ausente ou diferente. Separado do 400 para o cliente saber o que corrigir sem ambiguidade.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validade fora de 1-168 h ou rotulo acima de 120 caracteres",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
       "content": {
        "application/json": {
         "schema": {
@@ -266439,6 +267455,15 @@
       "required": false,
       "schema": {
        "$ref": "#/components/schemas/SocialConversationBox"
+      }
+     },
+     {
+      "name": "unread",
+      "in": "query",
+      "description": "`true` = só as que têm mensagem não lida; `false` = só as lidas.\nAusente = as duas.",
+      "required": false,
+      "schema": {
+       "type": "boolean"
       }
      },
      {
@@ -273396,6 +274421,196 @@
     ]
    }
   },
+  "/v1/social/messages/{id}/forward": {
+   "post": {
+    "tags": [
+     "social"
+    ],
+    "summary": "Encaminha uma mensagem para outra conversa.",
+    "description": "Texto e anexo saem de novo pela conexão da conversa de destino, com as\nportas do envio comum (cota, janela, bloqueio, conexão pronta). O anexo\nrecebido é trazido do provider para o cofre antes de sair.",
+    "operationId": "social_forward_message",
+    "parameters": [
+     {
+      "name": "Idempotency-Key",
+      "in": "header",
+      "description": "Chave de idempotencia, obrigatoria aqui ou em `idempotency_key` no corpo",
+      "required": false,
+      "schema": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "description": "Id da mensagem a encaminhar",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SocialForwardMessageBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Desfecho do envio no destino, INCLUSIVE a recusa de negocio (cota, janela, bloqueio), que nao e erro HTTP",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SendMessageResultDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "JSON sintaticamente malformado: envelope canônico com o motivo `malformed_json`. O detalhe do parser é omitido de propósito, para não revelar o que foi parcialmente aceito.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Modulo social nao contratado",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Sem a acao social.message.send",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Mensagem, conversa de destino ou anexo inexistente, de outro tenant ou fora da organizacao",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "A mesma chave ja enviou outro pedido na conversa de destino (code idempotency_key_reused)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "412": {
+      "description": "Mensagem apagada ou sem texto nem anexo (code forward_refused), ou anexo ainda no antivirus (attachment_scanning)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "413": {
+      "description": "Corpo acima do teto de payload de API, recusado pelo gateway ANTES de qualquer leitura. Não vira 422 de propósito: o servidor não desserializou nada, então não há campo a apontar. O teto de upload do cofre (`/v1/archive/files`) é outro, e maior, porque ali o corpo é o arquivo. Sai o envelope canônico com o motivo `payload_too_large`, recusado pela camada ou pelo extrator.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "415": {
+      "description": "`Content-Type: application/json` ausente ou diferente. Separado do 400 para o cliente saber o que corrigir sem ambiguidade.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Sem idempotency_key, ou corpo e cabecalho com chaves diferentes",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
   "/v1/social/messages/{id}/media": {
    "get": {
     "tags": [
@@ -273875,6 +275090,186 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/social/messages/{id}/reply-private": {
+   "post": {
+    "tags": [
+     "social"
+    ],
+    "summary": "\"Responder em particular\" a quem escreveu num grupo.",
+    "description": "Abre (ou reencontra) a conversa individual com o participante, na mesma\nconexão. Com texto, já envia por ela com o trecho da mensagem do grupo\ncitado no começo (`> `): a citação nativa só liga mensagens da mesma\nconversa.",
+    "operationId": "social_reply_private",
+    "parameters": [
+     {
+      "name": "Idempotency-Key",
+      "in": "header",
+      "description": "Chave de idempotencia, obrigatoria com texto (aqui ou no corpo)",
+      "required": false,
+      "schema": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "description": "Id da mensagem recebida no grupo",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SocialReplyPrivateBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "A conversa individual e, com texto, o desfecho do envio (recusa de negocio inclusa)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SocialReplyPrivateDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "JSON sintaticamente malformado: envelope canônico com o motivo `malformed_json`. O detalhe do parser é omitido de propósito, para não revelar o que foi parcialmente aceito.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Modulo social nao contratado",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Sem a acao social.message.send",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Mensagem inexistente, de outro tenant ou fora da organizacao",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "412": {
+      "description": "Mensagem que nao e de participante de grupo, ou participante sem numero conhecido (code private_reply_refused); conexao que nao abre conversa (unsupported_capability)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "413": {
+      "description": "Corpo acima do teto de payload de API, recusado pelo gateway ANTES de qualquer leitura. Não vira 422 de propósito: o servidor não desserializou nada, então não há campo a apontar. O teto de upload do cofre (`/v1/archive/files`) é outro, e maior, porque ali o corpo é o arquivo. Sai o envelope canônico com o motivo `payload_too_large`, recusado pela camada ou pelo extrator.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "415": {
+      "description": "`Content-Type: application/json` ausente ou diferente. Separado do 400 para o cliente saber o que corrigir sem ambiguidade.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Texto sem idempotency_key, ou corpo e cabecalho com chaves diferentes",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
         }
        }
       }
@@ -276045,6 +277440,339 @@
       "bearer_auth": []
      }
     ]
+   }
+  },
+  "/v1/social/public-links/{id}": {
+   "delete": {
+    "tags": [
+     "social"
+    ],
+    "summary": "Revoga um link público de vínculo. A página para de abrir na\nhora.",
+    "operationId": "social_revoke_public_link",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "description": "Id do link publico",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "O link revogado; revogar de novo nao muda nada",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SocialPublicLinkDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Modulo social nao contratado",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Sem a acao social.connection.link",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Link inexistente, de outro tenant ou de conexao fora da organizacao",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/social/public/connection-link": {
+   "get": {
+    "tags": [
+     "social · public"
+    ],
+    "summary": "A página pública do link de vínculo pergunta em laço.",
+    "description": "Sem sessão: a credencial é o token, no cabeçalho `X-Social-Link`. Responde\nsó a situação e o desafio, nunca nome, número ou dado da conta. A página\npergunta a cada poucos segundos.",
+    "operationId": "social_public_get_public_connection_link",
+    "parameters": [
+     {
+      "name": "x-social-link",
+      "in": "header",
+      "description": "Token do link publico de vinculo",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "A situacao da conexao e o desafio corrente; campos vazios enquanto nao ha desafio",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SocialPublicConnectionLinkDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Token ausente, desconhecido, vencido, revogado ou escopo sem o modulo social",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Teto por origem da rota",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/social/public/connection-link/start": {
+   "post": {
+    "tags": [
+     "social · public"
+    ],
+    "summary": "Começa (ou recomeça) o vínculo pela página pública.",
+    "description": "Sem sessão, com o token no cabeçalho `X-Social-Link`. Sem número sai QR;\ncom o número do aparelho, código de pareamento.",
+    "operationId": "social_public_start_public_connection_link",
+    "parameters": [
+     {
+      "name": "x-social-link",
+      "in": "header",
+      "description": "Token do link publico de vinculo",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SocialStartPublicLinkBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "O desafio novo (QR, ou codigo com o numero do aparelho)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SocialPublicConnectionLinkDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "JSON sintaticamente malformado: envelope canônico com o motivo `malformed_json`. O detalhe do parser é omitido de propósito, para não revelar o que foi parcialmente aceito.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Token ausente, desconhecido, vencido, revogado ou escopo sem o modulo social",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "412": {
+      "description": "Conexao ja vinculada (code connection_already_linked) ou adaptador fora do ar (connection_not_ready)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "413": {
+      "description": "Corpo acima do teto de payload de API, recusado pelo gateway ANTES de qualquer leitura. Não vira 422 de propósito: o servidor não desserializou nada, então não há campo a apontar. O teto de upload do cofre (`/v1/archive/files`) é outro, e maior, porque ali o corpo é o arquivo. Sai o envelope canônico com o motivo `payload_too_large`, recusado pela camada ou pelo extrator.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "415": {
+      "description": "`Content-Type: application/json` ausente ou diferente. Separado do 400 para o cliente saber o que corrigir sem ambiguidade.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Numero implausivel",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Teto por origem da rota",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    }
    }
   },
   "/v1/social/quick-replies": {
@@ -309936,6 +311664,81 @@
     ]
    }
   },
+  "/v1/vision/public/embed": {
+   "get": {
+    "tags": [
+     "vision · public"
+    ],
+    "summary": "A casca de incorporar um painel em outro site.",
+    "description": "É o endereço que vai no `<iframe>` do site de quem integra\n(`/sv/embed/<token>` no front, que repassa o token no cabeçalho\n`X-Vision-Link`). Abre o link sem senha para saber as origens que a dona\nliberou e responde só um quadro de tela cheia para `/sv/quadro/<token>`,\ncom `frame-ancestors` dessas origens. Link sem origem, com senha, vencido\nou revogado: ninguém emoldura (`'none'`). Quem decide as origens é o\nserviço; aqui só se escreve a resposta, e cada origem passa de novo pela\nforma `https://host[:porta]` antes de entrar no cabeçalho.",
+    "operationId": "vision_public_embed_vision_link",
+    "parameters": [
+     {
+      "name": "x-vision-link",
+      "in": "header",
+      "description": "Token do link público",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "A casca de incorporar: um quadro de tela cheia para `/sv/quadro/<token>`, com `frame-ancestors` das origens que o link libera",
+      "content": {
+       "text/html": {}
+      }
+     },
+     "404": {
+      "description": "Token ausente, desconhecido, vencido, revogado, com senha ou escopo sem o módulo `vision`: a casca vazia, que ninguém emoldura",
+      "content": {
+       "text/html": {}
+      }
+     },
+     "429": {
+      "description": "Teto por origem da rota",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/v1/vision/public/feed": {
    "get": {
     "tags": [
@@ -337631,6 +339434,7 @@
      "capabilities",
      "cold_cap_override",
      "daily_cap_override",
+     "expires_at",
      "first_response_target_minutes",
      "idle_close_minutes",
      "linked_at",
@@ -337685,7 +339489,15 @@
      },
      "display_identifier": {
       "type": "string",
-      "description": "Como a pessoa reconhece a conta: número formatado (`+55 11 91212-9388`)\nna Cloud API, `@perfil` no Instagram, nome da Página no Facebook. Vazio\nenquanto o serviço não leu na Meta: mostre `provider_identifier`."
+      "description": "Como a pessoa reconhece a conta: número formatado (`+55 11 91212-9388`)\nna Cloud API e no WhatsApp pelo aparelho, `@perfil` no Instagram, nome da\nPágina no Facebook. Vazio enquanto o serviço não leu na Meta: mostre o\nnome da rede."
+     },
+     "expires_at": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date-time",
+      "description": "Quando a credencial do provider vence (RFC3339). É o que deixa\na tela avisar \"vence em 5 dias\" antes de a conexão cair em\n`reauth_required`. `null` = não vence (sessão do não oficial, token de\nusuário do sistema) ou ainda não conferida."
      },
      "first_response_target_minutes": {
       "type": [
@@ -370917,7 +372729,7 @@
       "oneOf": [
        {
         "$ref": "#/components/schemas/SocialInstagramLoginFailure",
-        "description": "Com `failed`: `no_browser`, `browser_lost`, `browser_error`, `expired`,\n`canceled`, `abandoned`, `login_required` ou `unavailable`."
+        "description": "Com `failed`: `no_browser`, `browser_lost`, `browser_error`, `expired`,\n`canceled`, `abandoned`, `login_required`, `unavailable`,\n`account_in_use` (a conta já está em outra organização ou em outra\nconexão) ou `account_limit` (teto de contas da organização)."
        },
        {
         "type": "null"
@@ -424181,6 +425993,31 @@
     },
     "additionalProperties": false
    },
+   "SocialCreatePublicLinkBody": {
+    "type": "object",
+    "description": "Corpo da criação do link público de vínculo.",
+    "properties": {
+     "label": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "Rótulo de gente (\"Aparelho da recepção\").",
+      "maxLength": 120
+     },
+     "valid_hours": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "format": "int32",
+      "description": "Validade em horas (1-168). Ausente = 24.",
+      "maximum": 168,
+      "minimum": 1
+     }
+    },
+    "additionalProperties": false
+   },
    "SocialCreateTemplateBody": {
     "type": "object",
     "description": "Corpo do cadastro de template.\n\nA forma que a Meta aceita (nome, idioma, parâmetros sem buraco, um exemplo\npor parâmetro) é conferida no serviço, não aqui.",
@@ -424240,6 +426077,30 @@
     },
     "additionalProperties": false
    },
+   "SocialForwardMessageBody": {
+    "type": "object",
+    "description": "Corpo do encaminhamento.",
+    "required": [
+     "conversation_id"
+    ],
+    "properties": {
+     "conversation_id": {
+      "type": "string",
+      "description": "A conversa de destino, do mesmo escopo.",
+      "maxLength": 32,
+      "minLength": 1
+     },
+     "idempotency_key": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "Chave de idempotência, aqui ou no cabeçalho `Idempotency-Key`.",
+      "maxLength": 200
+     }
+    },
+    "additionalProperties": false
+   },
    "SocialInstagramLoginFailure": {
     "type": "string",
     "description": "Por que o login do Instagram terminou sem sessão: só documenta os valores, o fio é texto.",
@@ -424251,7 +426112,9 @@
      "canceled",
      "abandoned",
      "login_required",
-     "unavailable"
+     "unavailable",
+     "account_in_use",
+     "account_limit"
     ]
    },
    "SocialInstagramLoginInputKind": {
@@ -424696,6 +426559,184 @@
      "telegram"
     ]
    },
+   "SocialPublicConnectionLinkDto": {
+    "type": "object",
+    "description": "O que a página pública do link de vínculo vê: a situação da\nconexão e o desafio, nada da conta.",
+    "required": [
+     "status",
+     "qr_payload",
+     "pairing_code",
+     "link_expires_at",
+     "challenge_expires_at"
+    ],
+    "properties": {
+     "challenge_expires_at": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date-time",
+      "description": "Quando o desafio morre (RFC3339). `null` sem desafio."
+     },
+     "link_expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Quando o link deixa de abrir (RFC3339)."
+     },
+     "pairing_code": {
+      "type": "string",
+      "description": "Código de pareamento. Vazio sem desafio ou quando ele é QR."
+     },
+     "qr_payload": {
+      "type": "string",
+      "description": "Conteúdo do QR. Vazio sem desafio ou quando ele é código."
+     },
+     "status": {
+      "$ref": "#/components/schemas/SocialConnectionStatus",
+      "description": "Estado da conexão. `connected` = o aparelho foi vinculado."
+     }
+    }
+   },
+   "SocialPublicLinkCreatedDto": {
+    "type": "object",
+    "description": "O link recém criado, com o token.",
+    "required": [
+     "link",
+     "token"
+    ],
+    "properties": {
+     "link": {
+      "$ref": "#/components/schemas/SocialPublicLinkDto",
+      "description": "O link."
+     },
+     "token": {
+      "type": "string",
+      "description": "O token, **uma vez só**: vai no endereço curto da página pública\n(`/vincular/<token>`). Perdeu, gere outro."
+     }
+    }
+   },
+   "SocialPublicLinkDto": {
+    "type": "object",
+    "description": "Um link público de vínculo. O token não volta aqui.",
+    "required": [
+     "id",
+     "connection_id",
+     "label",
+     "created_at",
+     "expires_at",
+     "created_by_member_id",
+     "last_opened_at",
+     "revoked_at"
+    ],
+    "properties": {
+     "connection_id": {
+      "type": "string",
+      "description": "A conexão que o link vincula."
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Quando nasceu (RFC3339)."
+     },
+     "created_by_member_id": {
+      "type": "string",
+      "description": "Membro que criou. Vazio sem membro."
+     },
+     "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Quando deixa de abrir (RFC3339)."
+     },
+     "id": {
+      "type": "string",
+      "description": "Id."
+     },
+     "label": {
+      "type": "string",
+      "description": "Rótulo de gente. Pode ser vazio."
+     },
+     "last_opened_at": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date-time",
+      "description": "A última abertura pela página pública. `null` = nunca aberto."
+     },
+     "revoked_at": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date-time",
+      "description": "Quando foi revogado. `null` = não revogado."
+     }
+    }
+   },
+   "SocialPublicLinksDto": {
+    "type": "object",
+    "description": "Os links públicos de uma conexão.",
+    "required": [
+     "items"
+    ],
+    "properties": {
+     "items": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/SocialPublicLinkDto"
+      },
+      "description": "Do mais novo para o mais antigo, com os revogados e os vencidos (até 50)."
+     }
+    }
+   },
+   "SocialReplyPrivateBody": {
+    "type": "object",
+    "description": "Corpo da resposta em particular.",
+    "properties": {
+     "body": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "O texto da resposta. Ausente ou vazio = só abre a conversa individual.",
+      "maxLength": 4096
+     },
+     "idempotency_key": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "Chave de idempotência, obrigatória com texto (aqui ou no cabeçalho).",
+      "maxLength": 200
+     }
+    },
+    "additionalProperties": false
+   },
+   "SocialReplyPrivateDto": {
+    "type": "object",
+    "description": "O desfecho da resposta em particular.",
+    "required": [
+     "conversation",
+     "send"
+    ],
+    "properties": {
+     "conversation": {
+      "$ref": "#/components/schemas/ConversationDto",
+      "description": "A conversa individual com o participante, na conexão do grupo."
+     },
+     "send": {
+      "oneOf": [
+       {
+        "$ref": "#/components/schemas/SendMessageResultDto",
+        "description": "O envio, quando veio texto. Recusa de negócio volta aqui, como no envio."
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    }
+   },
    "SocialSchedulePostBody": {
     "type": "object",
     "description": "Corpo do agendamento.",
@@ -424799,6 +426840,21 @@
      "simple",
      "attendance"
     ]
+   },
+   "SocialStartPublicLinkBody": {
+    "type": "object",
+    "description": "Corpo do começo do vínculo pela página pública.",
+    "properties": {
+     "pairing_phone": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "O número do aparelho, para pedir código de pareamento em vez de QR.",
+      "maxLength": 32
+     }
+    },
+    "additionalProperties": false
    },
    "SocialSuppressionReason": {
     "type": "string",
@@ -425476,6 +427532,17 @@
      "sso_only": {
       "type": "boolean",
       "description": "`true` desliga senha, passkey e login social para a equipe: só o IdP do\ntenant abre sessão. Quem liga vira a conta de recuperação, que segue\nentrando com senha."
+     }
+    },
+    "additionalProperties": false
+   },
+   "StartConnectionInstagramLoginBody": {
+    "type": "object",
+    "description": "Corpo de abrir o login pelo navegador da casa para uma conexão.",
+    "properties": {
+     "accept_meta_risk": {
+      "type": "boolean",
+      "description": "A pessoa aceita que o Instagram (Meta) pode pedir verificação,\nbloquear ou restringir a conta. Sem `true`, 422."
      }
     },
     "additionalProperties": false
@@ -436264,6 +438331,16 @@
       "maxLength": 10,
       "minLength": 10
      },
+     "issue_date": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date",
+      "description": "Nova data de emissão (`YYYY-MM-DD`). O vencimento efetivo (o novo ou o\ngravado) não pode ficar antes dela: `400`, como na criação.",
+      "maxLength": 10,
+      "minLength": 10
+     },
      "payment_instructions": {
       "type": [
        "string",
@@ -436271,6 +438348,16 @@
       ],
       "description": "Novas instruções de pagamento.",
       "maxLength": 2048
+     },
+     "posting_date": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "format": "date",
+      "description": "Nova data de lançamento contábil (`YYYY-MM-DD`). Com o mês desta data\nfechado é `412`, salvo para quem tem\n`pay.fiscal_period.maintain_closed` dentro da janela, como na criação.",
+      "maxLength": 10,
+      "minLength": 10
      },
      "priority": {
       "oneOf": [
@@ -444104,6 +446191,10 @@
   {
    "name": "vision · public",
    "description": "Strategy Vision sem sessao: TV pareada (token no cabecalho X-Vision-Device) e link publico de painel (token no cabecalho X-Vision-Link)"
+  },
+  {
+   "name": "social · public",
+   "description": "Link publico de vinculo de conexao: a pagina sem sessao le o QR ou o codigo de pareamento com o token no cabecalho X-Social-Link, sem nenhum dado da conta"
   },
   {
    "name": "fleet",

@@ -8403,10 +8403,18 @@ export interface ConnectionDto {
   daily_cap_override: number | null;
   /**
    * Como a pessoa reconhece a conta: número formatado (`+55 11 91212-9388`)
-   * na Cloud API, `@perfil` no Instagram, nome da Página no Facebook. Vazio
-   * enquanto o serviço não leu na Meta: mostre `provider_identifier`.
+   * na Cloud API e no WhatsApp pelo aparelho, `@perfil` no Instagram, nome da
+   * Página no Facebook. Vazio enquanto o serviço não leu na Meta: mostre o
+   * nome da rede.
    */
   display_identifier: string;
+  /**
+   * Quando a credencial do provider vence (RFC3339). É o que deixa
+   * a tela avisar "vence em 5 dias" antes de a conexão cair em
+   * `reauth_required`. `null` = não vence (sessão do não oficial, token de
+   * usuário do sistema) ou ainda não conferida.
+   */
+  expires_at: string | null;
   /**
    * Meta de primeira resposta em minutos. Ausente = a meta
    * padrão do painel de SLA (15 minutos).
@@ -43831,6 +43839,14 @@ export interface SocialCreatePostBody {
   scheduled_at?: string | null;
 }
 
+/** Corpo da criação do link público de vínculo. */
+export interface SocialCreatePublicLinkBody {
+  /** Rótulo de gente ("Aparelho da recepção"). */
+  label?: string | null;
+  /** Validade em horas (1-168). Ausente = 24. */
+  valid_hours?: number | null;
+}
+
 /**
  * Corpo do cadastro de template.
  *
@@ -43854,8 +43870,16 @@ export interface SocialCreateTemplateBody {
   name: string;
 }
 
+/** Corpo do encaminhamento. */
+export interface SocialForwardMessageBody {
+  /** A conversa de destino, do mesmo escopo. */
+  conversation_id: string;
+  /** Chave de idempotência, aqui ou no cabeçalho `Idempotency-Key`. */
+  idempotency_key?: string | null;
+}
+
 /** Por que o login do Instagram terminou sem sessão: só documenta os valores, o fio é texto. */
-export type SocialInstagramLoginFailure = "no_browser" | "browser_lost" | "browser_error" | "expired" | "canceled" | "abandoned" | "login_required" | "unavailable";
+export type SocialInstagramLoginFailure = "no_browser" | "browser_lost" | "browser_error" | "expired" | "canceled" | "abandoned" | "login_required" | "unavailable" | "account_in_use" | "account_limit";
 
 /** Tipo de uma ação sobre a tela do navegador: só documenta os valores, o fio é texto. */
 export type SocialInstagramLoginInputKind = "click" | "text" | "key" | "scroll";
@@ -44024,6 +44048,75 @@ export type SocialPrivacyRequestStatus = "received" | "needs_operator" | "nothin
 /** Provider de uma conexão, contato, interação ou bloqueio: só documenta os valores, o fio é texto. */
 export type SocialProvider = "whatsapp_cloud" | "whatsapp_baileys" | "instagram" | "facebook_page" | "instagram_session" | "telegram";
 
+/**
+ * O que a página pública do link de vínculo vê: a situação da
+ * conexão e o desafio, nada da conta.
+ */
+export interface SocialPublicConnectionLinkDto {
+  /** Quando o desafio morre (RFC3339). `null` sem desafio. */
+  challenge_expires_at: string | null;
+  /** Quando o link deixa de abrir (RFC3339). */
+  link_expires_at: string;
+  /** Código de pareamento. Vazio sem desafio ou quando ele é QR. */
+  pairing_code: string;
+  /** Conteúdo do QR. Vazio sem desafio ou quando ele é código. */
+  qr_payload: string;
+  /** Estado da conexão. `connected` = o aparelho foi vinculado. */
+  status: SocialConnectionStatus;
+}
+
+/** O link recém criado, com o token. */
+export interface SocialPublicLinkCreatedDto {
+  /** O link. */
+  link: SocialPublicLinkDto;
+  /**
+   * O token, **uma vez só**: vai no endereço curto da página pública
+   * (`/vincular/<token>`). Perdeu, gere outro.
+   */
+  token: string;
+}
+
+/** Um link público de vínculo. O token não volta aqui. */
+export interface SocialPublicLinkDto {
+  /** A conexão que o link vincula. */
+  connection_id: string;
+  /** Quando nasceu (RFC3339). */
+  created_at: string;
+  /** Membro que criou. Vazio sem membro. */
+  created_by_member_id: string;
+  /** Quando deixa de abrir (RFC3339). */
+  expires_at: string;
+  /** Id. */
+  id: string;
+  /** Rótulo de gente. Pode ser vazio. */
+  label: string;
+  /** A última abertura pela página pública. `null` = nunca aberto. */
+  last_opened_at: string | null;
+  /** Quando foi revogado. `null` = não revogado. */
+  revoked_at: string | null;
+}
+
+/** Os links públicos de uma conexão. */
+export interface SocialPublicLinksDto {
+  /** Do mais novo para o mais antigo, com os revogados e os vencidos (até 50). */
+  items: SocialPublicLinkDto[];
+}
+
+/** Corpo da resposta em particular. */
+export interface SocialReplyPrivateBody {
+  /** O texto da resposta. Ausente ou vazio = só abre a conversa individual. */
+  body?: string | null;
+  /** Chave de idempotência, obrigatória com texto (aqui ou no cabeçalho). */
+  idempotency_key?: string | null;
+}
+
+/** O desfecho da resposta em particular. */
+export interface SocialReplyPrivateDto {
+  /** A conversa individual com o participante, na conexão do grupo. */
+  conversation: ConversationDto;
+  send: SendMessageResultDto | null;
+}
+
 /** Corpo do agendamento. */
 export interface SocialSchedulePostBody {
   /**
@@ -44064,6 +44157,12 @@ export interface SocialSendRoutesDto {
 
 /** Modo de atendimento de uma conexão: só documenta os valores, o fio é texto. */
 export type SocialServiceMode = "simple" | "attendance";
+
+/** Corpo do começo do vínculo pela página pública. */
+export interface SocialStartPublicLinkBody {
+  /** O número do aparelho, para pedir código de pareamento em vez de QR. */
+  pairing_phone?: string | null;
+}
 
 /** Motivo de um bloqueio: só documenta os valores, o fio é texto. */
 export type SocialSuppressionReason = "opt_out" | "manual" | "unreachable" | "complaint";
@@ -44334,6 +44433,15 @@ export interface SsoPolicyBody {
    * entrando com senha.
    */
   sso_only: boolean;
+}
+
+/** Corpo de abrir o login pelo navegador da casa para uma conexão. */
+export interface StartConnectionInstagramLoginBody {
+  /**
+   * A pessoa aceita que o Instagram (Meta) pode pedir verificação,
+   * bloquear ou restringir a conta. Sem `true`, 422.
+   */
+  accept_meta_risk?: boolean;
 }
 
 /** Corpo de abrir o login pelo navegador da casa. */
@@ -48511,8 +48619,19 @@ export interface UpdatePayableBody {
   document_number?: string | null;
   /** Nova data de vencimento no formato `YYYY-MM-DD`. */
   due_date?: string | null;
+  /**
+   * Nova data de emissão (`YYYY-MM-DD`). O vencimento efetivo (o novo ou o
+   * gravado) não pode ficar antes dela: `400`, como na criação.
+   */
+  issue_date?: string | null;
   /** Novas instruções de pagamento. */
   payment_instructions?: string | null;
+  /**
+   * Nova data de lançamento contábil (`YYYY-MM-DD`). Com o mês desta data
+   * fechado é `412`, salvo para quem tem
+   * `pay.fiscal_period.maintain_closed` dentro da janela, como na criação.
+   */
+  posting_date?: string | null;
   priority?: PayPayablePriority | null;
 }
 

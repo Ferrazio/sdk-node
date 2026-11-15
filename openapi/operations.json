@@ -5129,6 +5129,16 @@
  },
  {
   "method": "GET",
+  "path": "/v1/fiscal/dfe/sync",
+  "namespace": [
+   "fiscal",
+   "distribuicaoDfE"
+  ],
+  "name": "getSync",
+  "paginated": false
+ },
+ {
+  "method": "GET",
   "path": "/v1/fiscal/dfe/documents",
   "namespace": [
    "fiscal",
@@ -18468,6 +18478,15 @@
  },
  {
   "method": "DELETE",
+  "path": "/v1/social/connections/{id}/instagram-login/{login_id}",
+  "namespace": [
+   "social"
+  ],
+  "name": "cancelConnectionInstagramLogin",
+  "paginated": false
+ },
+ {
+  "method": "DELETE",
   "path": "/v1/social/instagram-session/login/{id}",
   "namespace": [
    "social"
@@ -18518,6 +18537,15 @@
    "social"
   ],
   "name": "createPost",
+  "paginated": false
+ },
+ {
+  "method": "POST",
+  "path": "/v1/social/connections/{id}/public-links",
+  "namespace": [
+   "social"
+  ],
+  "name": "createPublicLink",
   "paginated": false
  },
  {
@@ -18602,12 +18630,30 @@
   "paginated": false
  },
  {
+  "method": "POST",
+  "path": "/v1/social/messages/{id}/forward",
+  "namespace": [
+   "social"
+  ],
+  "name": "forwardMessage",
+  "paginated": false
+ },
+ {
   "method": "GET",
   "path": "/v1/social/connections/{id}",
   "namespace": [
    "social"
   ],
   "name": "getConnection",
+  "paginated": false
+ },
+ {
+  "method": "GET",
+  "path": "/v1/social/connections/{id}/instagram-login/{login_id}",
+  "namespace": [
+   "social"
+  ],
+  "name": "getConnectionInstagramLogin",
   "paginated": false
  },
  {
@@ -18846,6 +18892,15 @@
  },
  {
   "method": "GET",
+  "path": "/v1/social/connections/{id}/public-links",
+  "namespace": [
+   "social"
+  ],
+  "name": "listPublicLinks",
+  "paginated": false
+ },
+ {
+  "method": "GET",
   "path": "/v1/social/quick-replies",
   "namespace": [
    "social"
@@ -19008,6 +19063,15 @@
  },
  {
   "method": "POST",
+  "path": "/v1/social/messages/{id}/reply-private",
+  "namespace": [
+   "social"
+  ],
+  "name": "replyPrivate",
+  "paginated": false
+ },
+ {
+  "method": "POST",
   "path": "/v1/social/interactions/{id}/reply",
   "namespace": [
    "social"
@@ -19031,6 +19095,15 @@
    "social"
   ],
   "name": "revokeMessage",
+  "paginated": false
+ },
+ {
+  "method": "DELETE",
+  "path": "/v1/social/public-links/{id}",
+  "namespace": [
+   "social"
+  ],
+  "name": "revokePublicLink",
   "paginated": false
  },
  {
@@ -19076,6 +19149,15 @@
    "social"
   ],
   "name": "selectMetaLoginPage",
+  "paginated": false
+ },
+ {
+  "method": "POST",
+  "path": "/v1/social/connections/{id}/instagram-login/{login_id}/input",
+  "namespace": [
+   "social"
+  ],
+  "name": "sendConnectionInstagramLoginInput",
   "paginated": false
  },
  {
@@ -19166,6 +19248,15 @@
    "social"
   ],
   "name": "setWarmupWindow",
+  "paginated": false
+ },
+ {
+  "method": "POST",
+  "path": "/v1/social/connections/{id}/instagram-login",
+  "namespace": [
+   "social"
+  ],
+  "name": "startConnectionInstagramLogin",
   "paginated": false
  },
  {
@@ -19735,6 +19826,26 @@
    "helpdesk"
   ],
   "name": "updateTicket",
+  "paginated": false
+ },
+ {
+  "method": "GET",
+  "path": "/v1/social/public/connection-link",
+  "namespace": [
+   "social",
+   "public"
+  ],
+  "name": "getPublicConnectionLink",
+  "paginated": false
+ },
+ {
+  "method": "POST",
+  "path": "/v1/social/public/connection-link/start",
+  "namespace": [
+   "social",
+   "public"
+  ],
+  "name": "startPublicConnectionLink",
   "paginated": false
  },
  {
@@ -22015,6 +22126,16 @@
    "vision"
   ],
   "name": "updateVisionTheme",
+  "paginated": false
+ },
+ {
+  "method": "GET",
+  "path": "/v1/vision/public/embed",
+  "namespace": [
+   "vision",
+   "public"
+  ],
+  "name": "embedVisionLink",
   "paginated": false
  },
  {

@@ -1,2 +1,2 @@
 /** Version of this SDK, sent in the `User-Agent` header. */
-export const VERSION = '7.11.0';
+export const VERSION = '7.12.0';

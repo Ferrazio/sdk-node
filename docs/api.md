@@ -1,7 +1,7 @@
 # Referência da API
 
 Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`).
-2287 operações. `fz` é uma instância de `Ferrazio`. Métodos com `*All` percorrem todas as páginas.
+2300 operações. `fz` é uma instância de `Ferrazio`. Métodos com `*All` percorrem todas as páginas.
 
 ## fz.archive
 
@@ -699,6 +699,7 @@ Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`
 | `download` | `POST /v1/fiscal/dfe/documents/{id}/download` | Baixa o documento completo de um resumo, por chave de acesso (`consChNFe`). |
 | `getItems` | `GET /v1/fiscal/dfe/documents/{id}/items` | Itens (`<det>`) do documento recebido - insumo da conferência de recebimento. |
 | `getOne` | `GET /v1/fiscal/dfe/documents/{id}` | Retorna um documento recebido + o XML byte-a-byte (base64). |
+| `getSync` | `GET /v1/fiscal/dfe/sync` | Lê o estado da busca automática de um interessado, sem alterar nada. |
 | `list`, `listAll` | `GET /v1/fiscal/dfe/documents` | Lista os documentos recebidos do AN com paginação por cursor (mais recente primeiro). |
 | `manifest` | `POST /v1/fiscal/dfe/documents/{id}/manifest` | Manifesta o destinatário (evento 2102xx registrado no Ambiente Nacional). |
 | `setSync` | `PUT /v1/fiscal/dfe/sync` | Liga/desliga o poll do NFeDistribuicaoDFe (AN) para um emitente do tenant. |
@@ -2715,12 +2716,14 @@ Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`
 | `archiveConversation` | `PUT /v1/social/conversations/{id}/archive` | Arquiva a conversa **para quem pede**. |
 | `assignConversation` | `POST /v1/social/conversations/{id}/assign` | Diz quem está atendendo. |
 | `beginMetaLogin` | `POST /v1/social/connections/{id}/meta-login` | Abre o "Entrar com Facebook" da conexão. |
+| `cancelConnectionInstagramLogin` | `DELETE /v1/social/connections/{id}/instagram-login/{login_id}` | Fecha o navegador do login da conexão sem guardar nada. |
 | `cancelInstagramLogin` | `DELETE /v1/social/instagram-session/login/{id}` | Fecha o navegador sem guardar nada. |
 | `cancelPost` | `POST /v1/social/posts/{id}/cancel` | Tira da fila os destinos que ainda não começaram a sair. |
 | `completeWhatsappSignup` | `POST /v1/social/connections/{id}/whatsapp-signup` | O fim do cadastro do WhatsApp pela Meta. |
 | `createConnection` | `POST /v1/social/connections` | Cria uma conexão. |
 | `createLabel` | `POST /v1/social/labels` | Cria uma etiqueta. |
 | `createPost` | `POST /v1/social/posts` | Monta um post para uma ou mais conexões (Instagram, Página do Facebook), rascunho ou já agendado. |
+| `createPublicLink` | `POST /v1/social/connections/{id}/public-links` | Cria um link público de vínculo. |
 | `createTemplate` | `POST /v1/social/connections/{id}/templates` | Cadastra um template e o submete à análise do provider. |
 | `deleteConnection` | `DELETE /v1/social/connections/{id}` | Apaga o cadastro de uma conexão que nunca operou. |
 | `deleteInstagramSession` | `DELETE /v1/social/instagram-session/{account_id}` | Desconecta uma conta do Instagram da organização. |
@@ -2730,7 +2733,9 @@ Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`
 | `editNote` | `PATCH /v1/social/notes/{id}` | Edita uma nota interna. |
 | `enrollWarmup` | `POST /v1/social/connections/{id}/warmup` | Coloca o número para aquecer. |
 | `finishMetaLogin` | `POST /v1/social/meta-logins/{id}/finish` | Termina o "Entrar com Facebook" com o bilhete da volta. |
+| `forwardMessage` | `POST /v1/social/messages/{id}/forward` | Encaminha uma mensagem para outra conversa. |
 | `getConnection` | `GET /v1/social/connections/{id}` | Uma conexão pelo id. |
+| `getConnectionInstagramLogin` | `GET /v1/social/connections/{id}/instagram-login/{login_id}` | O estado do login da conexão e a tela do navegador. |
 | `getConversation` | `GET /v1/social/conversations/{id}` | Uma conversa pelo id. |
 | `getInstagramLogin` | `GET /v1/social/instagram-session/login/{id}` | O estado do login e a tela do navegador. |
 | `getLinkChallenge` | `GET /v1/social/connections/{id}/link` | O desafio corrente do vínculo. |
@@ -2757,6 +2762,7 @@ Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`
 | `listNotes`, `listNotesAll` | `GET /v1/social/conversations/{id}/notes` | As notas internas de uma conversa. |
 | `listPostFormats` | `GET /v1/social/connections/{id}/post-formats` | O que a conexão publica e o que cada formato aceita. |
 | `listPosts`, `listPostsAll` | `GET /v1/social/posts` | O calendário de posts. |
+| `listPublicLinks` | `GET /v1/social/connections/{id}/public-links` | Os links públicos de vínculo de uma conexão. |
 | `listQuickReplies` | `GET /v1/social/quick-replies` | As respostas prontas do escopo. |
 | `listSendRoutes` | `GET /v1/social/send-routes` | Por onde falar com um número quando o tenant tem mais de uma conexão. |
 | `listSuppressions`, `listSuppressionsAll` | `GET /v1/social/suppressions` | A lista de bloqueio do tenant. |
@@ -2775,14 +2781,17 @@ Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`
 | `refreshTemplate` | `POST /v1/social/templates/{id}/refresh` | Consulta no provider o estado de um template submetido. |
 | `removeReaction` | `DELETE /v1/social/messages/{id}/reaction` | Tira a reação da conexão a uma mensagem. |
 | `renameConnection` | `PATCH /v1/social/connections/{id}` | Troca o nome da conexão, em qualquer status (vinculada inclusive). |
+| `replyPrivate` | `POST /v1/social/messages/{id}/reply-private` | "Responder em particular" a quem escreveu num grupo. |
 | `replyToComment` | `POST /v1/social/interactions/{id}/reply` | Responde ao comentário, em público ou em privado. |
 | `resumeConnection` | `POST /v1/social/connections/{id}/resume` | Devolve a conexão à circulação. |
 | `revokeMessage` | `DELETE /v1/social/messages/{id}` | Apaga para todos uma mensagem que a conexão mandou. |
+| `revokePublicLink` | `DELETE /v1/social/public-links/{id}` | Revoga um link público de vínculo. A página para de abrir na hora. |
 | `saveInstagramSession` | `PUT /v1/social/instagram-session` | Conecta uma conta do Instagram da organização colando a sessão, ou troca a sessão de uma (`account_id`). |
 | `saveOptOutSettings` | `PUT /v1/social/opt-out` | Substitui o descadastro automático da organização. |
 | `saveQuickReply` | `POST /v1/social/quick-replies` | Cria ou substitui uma resposta pronta, pela chave do atalho. |
 | `schedulePost` | `POST /v1/social/posts/{id}/schedule` | Agenda ou reagenda os destinos em rascunho, na fila ou que falharam. |
 | `selectMetaLoginPage` | `POST /v1/social/meta-logins/{id}/select` | A pessoa escolheu a Página: a conexão é vinculada com o token dela. |
+| `sendConnectionInstagramLoginInput` | `POST /v1/social/connections/{id}/instagram-login/{login_id}/input` | Cliques e teclas da pessoa, repassados ao navegador do login da conexão. |
 | `sendInstagramLoginInput` | `POST /v1/social/instagram-session/login/{id}/input` | Cliques e teclas da pessoa, repassados ao navegador. |
 | `sendMessage` | `POST /v1/social/conversations/{id}/messages` | Envia uma mensagem na conversa. |
 | `setConnectionCaps` | `PUT /v1/social/connections/{id}/caps` | Grava o teto do cliente e liga ou desliga a escala automática. |
@@ -2793,6 +2802,7 @@ Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`
 | `setWarmupPaused` | `PUT /v1/social/connections/{id}/warmup/paused` | Suspende ou retoma a emissão sem sair do aquecimento. |
 | `setWarmupTarget` | `PUT /v1/social/connections/{id}/warmup/target` | Troca a meta diária do aquecimento ("Mensagens por dia (meta)"). |
 | `setWarmupWindow` | `PUT /v1/social/connections/{id}/warmup/window` | Escolhe a janela de horário do número no aquecimento, ou volta à padrão (corpo sem as duas pontas). |
+| `startConnectionInstagramLogin` | `POST /v1/social/connections/{id}/instagram-login` | Abre o navegador da casa na tela de login do Instagram para ligar a conexão `instagram_session` `id`. |
 | `startInstagramLogin` | `POST /v1/social/instagram-session/login` | Abre o navegador da casa na tela de login do Instagram da organização, para uma conta nova ou para reconectar a conta `account_id`. |
 | `startLink` | `POST /v1/social/connections/{id}/link` | Começa o vínculo da conexão. |
 | `submitTemplate` | `POST /v1/social/templates/{id}/submit` | Submete de novo um rascunho que não chegou ao provider. |
@@ -2873,6 +2883,13 @@ Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`
 | `updateArticle` | `PUT /v1/social/helpdesk/articles/{id}` | Substitui o artigo. A primeira publicação fica gravada mesmo que volte a rascunho. |
 | `updateCategory` | `PUT /v1/social/helpdesk/categories/{id}` | Substitui a categoria. O novo prazo vale para os chamados abertos depois: o de quem já abriu fica congelado. |
 | `updateTicket` | `PATCH /v1/social/helpdesk/tickets/{id}` | Estado, prioridade, categoria e atendente. Cada mudança vira um registro da linha do tempo. |
+
+## fz.social.public
+
+| Método | Rota | O que faz |
+|---|---|---|
+| `getPublicConnectionLink` | `GET /v1/social/public/connection-link` (pública) | A página pública do link de vínculo pergunta em laço. |
+| `startPublicConnectionLink` | `POST /v1/social/public/connection-link/start` (pública) | Começa (ou recomeça) o vínculo pela página pública. |
 
 ## fz.stock.accounting
 
@@ -3247,6 +3264,7 @@ Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`
 
 | Método | Rota | O que faz |
 |---|---|---|
+| `embedVisionLink` | `GET /v1/vision/public/embed` (pública) | A casca de incorporar um painel em outro site. |
 | `getVisionDeviceFeed` | `GET /v1/vision/public/feed` (pública) | O que a TV mostra agora. |
 | `openVisionLink` | `POST /v1/vision/public/link` (pública) | Abre um painel pelo link público. |
 | `pairVisionDevice` | `POST /v1/vision/public/pair` (pública) | Pareia a TV com o código mostrado na tela de TVs. |

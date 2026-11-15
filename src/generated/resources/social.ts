@@ -926,6 +926,39 @@ export class SocialHelpdeskResource extends Resource {
   }
 }
 
+/** Routes tagged `social · public`. */
+export class SocialPublicResource extends Resource {
+  /**
+   * A página pública do link de vínculo pergunta em laço.
+   *
+   * Sem sessão: a credencial é o token, no cabeçalho `X-Social-Link`. Responde
+   * só a situação e o desafio, nunca nome, número ou dado da conta. A página
+   * pergunta a cada poucos segundos.
+   *
+   * `GET /v1/social/public/connection-link` (public route, sent without credentials)
+   *
+   * @param options Per-call overrides. Headers of this route: `x-social-link` (required).
+   */
+  getPublicConnectionLink(options: RequestOptions & { headers: { "x-social-link": string } }): Promise<S.SocialPublicConnectionLinkDto> {
+    return this._http.request({ method: 'GET', path: `/v1/social/public/connection-link`, auth: false, options });
+  }
+
+  /**
+   * Começa (ou recomeça) o vínculo pela página pública.
+   *
+   * Sem sessão, com o token no cabeçalho `X-Social-Link`. Sem número sai QR;
+   * com o número do aparelho, código de pareamento.
+   *
+   * `POST /v1/social/public/connection-link/start` (public route, sent without credentials)
+   *
+   * @param body Request body.
+   * @param options Per-call overrides. Headers of this route: `x-social-link` (required).
+   */
+  startPublicConnectionLink(body: S.SocialStartPublicLinkBody, options: RequestOptions & { headers: { "x-social-link": string } }): Promise<S.SocialPublicConnectionLinkDto> {
+    return this._http.request({ method: 'POST', path: `/v1/social/public/connection-link/start`, body, auth: false, options });
+  }
+}
+
 /** Query of `POST /v1/social/posts/{id}/cancel`. */
 export interface SocialCancelPostQuery {
   /**
@@ -942,6 +975,12 @@ export interface SocialGetConnectionQuery {
    * existisse. Ausente = qualquer uso.
    */
   usage?: string;
+}
+
+/** Query of `GET /v1/social/connections/{id}/instagram-login/{login_id}`. */
+export interface SocialGetConnectionInstagramLoginQuery {
+  /** A ultima tela que quem pergunta ja tem */
+  after_seq?: number;
 }
 
 /** Query of `GET /v1/social/instagram-session/login/{id}`. */
@@ -1022,6 +1061,11 @@ export interface SocialListConversationsQuery {
    * ignoradas). Ausente = as duas juntas.
    */
   box?: S.SocialConversationBox;
+  /**
+   * `true` = só as que têm mensagem não lida; `false` = só as lidas.
+   * Ausente = as duas.
+   */
+  unread?: boolean;
   /** Tamanho da página. Aparado pelo serviço (default 25, teto 100). */
   page_size?: number;
   /** Cursor **opaco** da página seguinte. O cliente devolve o que recebeu. */
@@ -1122,6 +1166,7 @@ export class SocialResource extends Resource {
   readonly ai = new SocialAiResource(this._http);
   readonly bot = new SocialBotResource(this._http);
   readonly helpdesk = new SocialHelpdeskResource(this._http);
+  readonly public = new SocialPublicResource(this._http);
 
   /**
    * Anota algo na conversa, para a equipe.
@@ -1185,6 +1230,21 @@ export class SocialResource extends Resource {
    */
   beginMetaLogin(id: string, options?: RequestOptions): Promise<S.MetaLoginDto> {
     return this._http.request({ method: 'POST', path: `/v1/social/connections/${seg(id)}/meta-login`, options });
+  }
+
+  /**
+   * Fecha o navegador do login da conexão sem guardar nada.
+   *
+   * Pode ser repetido sem efeito novo.
+   *
+   * `DELETE /v1/social/connections/{id}/instagram-login/{login_id}`
+   *
+   * @param id Id da conexao instagram_session
+   * @param loginId Id do login
+   * @param options Per-call overrides.
+   */
+  cancelConnectionInstagramLogin(id: string, loginId: string, options?: RequestOptions): Promise<S.InstagramLoginDto> {
+    return this._http.request({ method: 'DELETE', path: `/v1/social/connections/${seg(id)}/instagram-login/${seg(loginId)}`, options });
   }
 
   /**
@@ -1294,6 +1354,23 @@ export class SocialResource extends Resource {
    */
   createPost(body: S.SocialCreatePostBody, options?: RequestOptions & { headers?: { "Idempotency-Key"?: string } }): Promise<S.SocialPostDto> {
     return this._http.request({ method: 'POST', path: `/v1/social/posts`, body, options });
+  }
+
+  /**
+   * Cria um link público de vínculo.
+   *
+   * Só no WhatsApp não oficial. Quem abre o link vê só o QR (ou o código) e a
+   * situação da conexão, e vincula o próprio aparelho sem conta. O token volta
+   * **uma vez**; depois só o hash existe.
+   *
+   * `POST /v1/social/connections/{id}/public-links`
+   *
+   * @param id Id da conexao
+   * @param body Request body.
+   * @param options Per-call overrides.
+   */
+  createPublicLink(id: string, body: S.SocialCreatePublicLinkBody, options?: RequestOptions): Promise<S.SocialPublicLinkCreatedDto> {
+    return this._http.request({ method: 'POST', path: `/v1/social/connections/${seg(id)}/public-links`, body, options });
   }
 
   /**
@@ -1449,6 +1526,23 @@ export class SocialResource extends Resource {
   }
 
   /**
+   * Encaminha uma mensagem para outra conversa.
+   *
+   * Texto e anexo saem de novo pela conexão da conversa de destino, com as
+   * portas do envio comum (cota, janela, bloqueio, conexão pronta). O anexo
+   * recebido é trazido do provider para o cofre antes de sair.
+   *
+   * `POST /v1/social/messages/{id}/forward`
+   *
+   * @param id Id da mensagem a encaminhar
+   * @param body Request body.
+   * @param options Per-call overrides. Headers of this route: `Idempotency-Key`.
+   */
+  forwardMessage(id: string, body: S.SocialForwardMessageBody, options?: RequestOptions & { headers?: { "Idempotency-Key"?: string } }): Promise<S.SendMessageResultDto> {
+    return this._http.request({ method: 'POST', path: `/v1/social/messages/${seg(id)}/forward`, body, options });
+  }
+
+  /**
    * Uma conexão pelo id.
    *
    * Conexão de outro tenant responde **404**, nunca 403: distinguir os dois
@@ -1462,6 +1556,22 @@ export class SocialResource extends Resource {
    */
   getConnection(id: string, query?: SocialGetConnectionQuery, options?: RequestOptions): Promise<S.ConnectionDto> {
     return this._http.request({ method: 'GET', path: `/v1/social/connections/${seg(id)}`, query, options });
+  }
+
+  /**
+   * O estado do login da conexão e a tela do navegador.
+   *
+   * Igual ao do pool, mas só alcança o login aberto por esta conexão.
+   *
+   * `GET /v1/social/connections/{id}/instagram-login/{login_id}`
+   *
+   * @param id Id da conexao instagram_session
+   * @param loginId Id do login
+   * @param query Query string parameters.
+   * @param options Per-call overrides.
+   */
+  getConnectionInstagramLogin(id: string, loginId: string, query?: SocialGetConnectionInstagramLoginQuery, options?: RequestOptions): Promise<S.InstagramLoginDto> {
+    return this._http.request({ method: 'GET', path: `/v1/social/connections/${seg(id)}/instagram-login/${seg(loginId)}`, query, options });
   }
 
   /**
@@ -1951,6 +2061,18 @@ export class SocialResource extends Resource {
   }
 
   /**
+   * Os links públicos de vínculo de uma conexão.
+   *
+   * `GET /v1/social/connections/{id}/public-links`
+   *
+   * @param id Id da conexao
+   * @param options Per-call overrides.
+   */
+  listPublicLinks(id: string, options?: RequestOptions): Promise<S.SocialPublicLinksDto> {
+    return this._http.request({ method: 'GET', path: `/v1/social/connections/${seg(id)}/public-links`, options });
+  }
+
+  /**
    * As respostas prontas do escopo.
    *
    * O texto que o atendente chama pelo atalho no compositor, em vez de reescrever
@@ -2266,6 +2388,24 @@ export class SocialResource extends Resource {
   }
 
   /**
+   * "Responder em particular" a quem escreveu num grupo.
+   *
+   * Abre (ou reencontra) a conversa individual com o participante, na mesma
+   * conexão. Com texto, já envia por ela com o trecho da mensagem do grupo
+   * citado no começo (`> `): a citação nativa só liga mensagens da mesma
+   * conversa.
+   *
+   * `POST /v1/social/messages/{id}/reply-private`
+   *
+   * @param id Id da mensagem recebida no grupo
+   * @param body Request body.
+   * @param options Per-call overrides. Headers of this route: `Idempotency-Key`.
+   */
+  replyPrivate(id: string, body: S.SocialReplyPrivateBody, options?: RequestOptions & { headers?: { "Idempotency-Key"?: string } }): Promise<S.SocialReplyPrivateDto> {
+    return this._http.request({ method: 'POST', path: `/v1/social/messages/${seg(id)}/reply-private`, body, options });
+  }
+
+  /**
    * Responde ao comentário, em público ou em privado.
    *
    * ⚠️ A resposta privada é o único caminho para falar com quem comentou: a
@@ -2317,6 +2457,19 @@ export class SocialResource extends Resource {
    */
   revokeMessage(id: string, options?: RequestOptions): Promise<S.MessageDto> {
     return this._http.request({ method: 'DELETE', path: `/v1/social/messages/${seg(id)}`, options });
+  }
+
+  /**
+   * Revoga um link público de vínculo. A página para de abrir na
+   * hora.
+   *
+   * `DELETE /v1/social/public-links/{id}`
+   *
+   * @param id Id do link publico
+   * @param options Per-call overrides.
+   */
+  revokePublicLink(id: string, options?: RequestOptions): Promise<S.SocialPublicLinkDto> {
+    return this._http.request({ method: 'DELETE', path: `/v1/social/public-links/${seg(id)}`, options });
   }
 
   /**
@@ -2401,6 +2554,22 @@ export class SocialResource extends Resource {
    */
   selectMetaLoginPage(id: string, body: S.SelectMetaLoginPageBody, options?: RequestOptions): Promise<S.ConnectionDto> {
     return this._http.request({ method: 'POST', path: `/v1/social/meta-logins/${seg(id)}/select`, body, options });
+  }
+
+  /**
+   * Cliques e teclas da pessoa, repassados ao navegador do login da conexão.
+   *
+   * Vão no corpo, e não na query, porque o texto é a senha da conta.
+   *
+   * `POST /v1/social/connections/{id}/instagram-login/{login_id}/input`
+   *
+   * @param id Id da conexao instagram_session
+   * @param loginId Id do login
+   * @param body Request body.
+   * @param options Per-call overrides.
+   */
+  sendConnectionInstagramLoginInput(id: string, loginId: string, body: S.SendInstagramLoginInputBody, options?: RequestOptions): Promise<S.InstagramLoginDto> {
+    return this._http.request({ method: 'POST', path: `/v1/social/connections/${seg(id)}/instagram-login/${seg(loginId)}/input`, body, options });
   }
 
   /**
@@ -2572,6 +2741,25 @@ export class SocialResource extends Resource {
    */
   setWarmupWindow(id: string, body: S.WarmupWindowBody, options?: RequestOptions): Promise<S.WarmupStatusDto> {
     return this._http.request({ method: 'PUT', path: `/v1/social/connections/${seg(id)}/warmup/window`, body, options });
+  }
+
+  /**
+   * Abre o navegador da casa na tela de login do Instagram para ligar a
+   * conexão `instagram_session` `id`.
+   *
+   * É o login do pool com a conexão no lugar da conta: a conta do pool fica
+   * com o id da conexão, e no fim a sessão grava e a conexão fica conectada.
+   * Pede a permissão de vincular conexão, não a de comprar captação. Um login
+   * por organização de cada vez: abrir outro encerra o anterior.
+   *
+   * `POST /v1/social/connections/{id}/instagram-login`
+   *
+   * @param id Id da conexao instagram_session
+   * @param body Request body.
+   * @param options Per-call overrides.
+   */
+  startConnectionInstagramLogin(id: string, body: S.StartConnectionInstagramLoginBody, options?: RequestOptions): Promise<S.InstagramLoginDto> {
+    return this._http.request({ method: 'POST', path: `/v1/social/connections/${seg(id)}/instagram-login`, body, options });
   }
 
   /**

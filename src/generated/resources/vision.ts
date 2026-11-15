@@ -8,6 +8,26 @@ import type * as S from '../schemas.js';
 /** Routes tagged `vision · public`. */
 export class VisionPublicResource extends Resource {
   /**
+   * A casca de incorporar um painel em outro site.
+   *
+   * É o endereço que vai no `<iframe>` do site de quem integra
+   * (`/sv/embed/<token>` no front, que repassa o token no cabeçalho
+   * `X-Vision-Link`). Abre o link sem senha para saber as origens que a dona
+   * liberou e responde só um quadro de tela cheia para `/sv/quadro/<token>`,
+   * com `frame-ancestors` dessas origens. Link sem origem, com senha, vencido
+   * ou revogado: ninguém emoldura (`'none'`). Quem decide as origens é o
+   * serviço; aqui só se escreve a resposta, e cada origem passa de novo pela
+   * forma `https://host[:porta]` antes de entrar no cabeçalho.
+   *
+   * `GET /v1/vision/public/embed` (public route, sent without credentials)
+   *
+   * @param options Per-call overrides. Headers of this route: `x-vision-link` (required).
+   */
+  embedVisionLink(options: RequestOptions & { headers: { "x-vision-link": string } }): Promise<Response> {
+    return this._http.request({ method: 'GET', path: `/v1/vision/public/embed`, responseType: 'raw', auth: false, options });
+  }
+
+  /**
    * O que a TV mostra agora.
    *
    * Sem sessão, pelo token do cabeçalho `X-Vision-Device`. Painel que quem

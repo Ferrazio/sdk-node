@@ -305,6 +305,14 @@ export class FiscalCscResource extends Resource {
   }
 }
 
+/** Query of `GET /v1/fiscal/dfe/sync`. */
+export interface FiscalDistribuicaoDfEGetSyncQuery {
+  /** CNPJ interessado (14 dígitos) */
+  cnpj: string;
+  /** Ambiente: `production` | `homologation` */
+  environment: string;
+}
+
 /** Query of `GET /v1/fiscal/dfe/documents`. */
 export interface FiscalDistribuicaoDfEListQuery {
   /** Tamanho da página */
@@ -371,6 +379,25 @@ export class FiscalDistribuicaoDfEResource extends Resource {
    */
   getOne(id: string, options?: RequestOptions): Promise<S.DfeDocumentWithXmlDto> {
     return this._http.request({ method: 'GET', path: `/v1/fiscal/dfe/documents/${seg(id)}`, options });
+  }
+
+  /**
+   * Lê o estado da busca automática de um interessado, sem alterar nada.
+   *
+   * Diz se a busca automática de documentos recebidos está ligada para o CNPJ no
+   * ambiente, até que NSU já foi lido e quando foi a última consulta ao Ambiente
+   * Nacional.
+   *
+   * Busca que nunca foi ligada volta desligada, com NSU zero e `last_polled_at`
+   * nulo: não é erro.
+   *
+   * `GET /v1/fiscal/dfe/sync`
+   *
+   * @param query Query string parameters.
+   * @param options Per-call overrides.
+   */
+  getSync(query: FiscalDistribuicaoDfEGetSyncQuery, options?: RequestOptions): Promise<S.DfeSyncStateDto> {
+    return this._http.request({ method: 'GET', path: `/v1/fiscal/dfe/sync`, query, options });
   }
 
   /**
