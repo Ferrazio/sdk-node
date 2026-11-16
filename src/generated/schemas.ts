@@ -13198,6 +13198,12 @@ export interface FileDto {
    * quarentena).
    */
   quarantined_at: string | null;
+  /**
+   * `true` quando o arquivo ficou pronto SEM passar pelo antivírus, por ser
+   * maior que o teto de varredura (cerca de 2000 MiB; veredito
+   * `skipped_too_large`). Só arquivo do Files.
+   */
+  scan_skipped: boolean;
   /** Escopo: `owner` | `people` | `organization` | `tenant`. */
   scope: ArchiveScope;
   /** Tamanho em bytes. */

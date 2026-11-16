@@ -352383,6 +352383,7 @@
      "folder_id",
      "created_at",
      "deleted_by_user_id",
+     "scan_skipped",
      "deleted_at",
      "frozen_at",
      "quarantine_purge_at",
@@ -352474,6 +352475,10 @@
       ],
       "format": "date-time",
       "description": "Quando o arquivo foi bloqueado pela varredura (RFC 3339; `null` fora da\nquarentena)."
+     },
+     "scan_skipped": {
+      "type": "boolean",
+      "description": "`true` quando o arquivo ficou pronto SEM passar pelo antivírus, por ser\nmaior que o teto de varredura (cerca de 2000 MiB; veredito\n`skipped_too_large`). Só arquivo do Files."
      },
      "scope": {
       "$ref": "#/components/schemas/ArchiveScope",
