@@ -243,8 +243,9 @@ describe('contract with the OpenAPI snapshot', () => {
   });
 
   test('every success with a JSON body has a schema, so no method returns unknown', () => {
-    // Downloads of a JSON file the service assembles, and the PSP callback that only reads the status.
-    const untyped = new Set(['POST /v1/marketing/data-subjects/export', 'GET /v1/reports/jobs/{id}/result', 'POST /v1/psp/webhooks/{provider}']);
+    // Downloads of a JSON file the service assembles, the PSP callback that only reads the status,
+    // and the OAuth revocation, whose 200 has no body (RFC 7009 2.2).
+    const untyped = new Set(['POST /v1/marketing/data-subjects/export', 'GET /v1/reports/jobs/{id}/result', 'POST /v1/psp/webhooks/{provider}', 'POST /v1/oauth/revoke']);
     const missing: string[] = [];
     for (const { path, verb, operation } of operations) {
       const id = `${verb.toUpperCase()} ${path}`;

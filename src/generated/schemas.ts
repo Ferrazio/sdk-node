@@ -2016,6 +2016,44 @@ export interface AppDeviceListDto {
   items: AppDeviceDto[];
 }
 
+/** Uma instalação de aplicativo. */
+export interface AppInstallationDto {
+  app_name: string;
+  client_id: string;
+  installation_id: string;
+  /** RFC 3339. */
+  installed_at: string;
+  /** Usuário que aprovou por último. */
+  installed_by: string;
+  organization_id: string;
+  /** Ausente enquanto ativa. */
+  revoked_at: string | null;
+  scopes: string[];
+  /** `active` ou `revoked`. */
+  status: string;
+  tenant_id: string;
+  updated_at: string;
+}
+
+/** Instalações da organização do contexto. */
+export interface AppInstallationListDto {
+  items: AppInstallationDto[];
+}
+
+/** Um escopo pedido, com o texto do catálogo. */
+export interface AppScopeDto {
+  action: string;
+  description: string;
+  /** Declarado obrigatório pelo aplicativo: não pode ser desmarcado. */
+  required: boolean;
+}
+
+/** Resultado da desinstalação. */
+export interface AppUninstallDto {
+  /** `false` quando já estava desinstalada. */
+  revoked: boolean;
+}
+
 /** Corpo para aplicar encargos (multa/juros/desconto) a um título a pagar. */
 export interface ApplyChargesBody {
   /** Valor do desconto como string decimal (subtrai do total). */
@@ -2627,6 +2665,47 @@ export interface AuditWriteEventPageDto {
   items: AuditWriteEventDto[];
   /** Cursor da próxima página. Vazio = última página. */
   next_page_token: string;
+}
+
+/** Corpo da aprovação: o pedido original, a organização e os escopos marcados. */
+export interface AuthorizeApproveBody {
+  client_id: string;
+  code_challenge: string;
+  code_challenge_method: string;
+  /** Organização em que o aplicativo será instalado (Snowflake, em string). */
+  organization_id: string;
+  redirect_uri: string;
+  response_type: string;
+  scope?: string | null;
+  /** Escopos opcionais que quem aprova marcou. Os obrigatórios entram sempre. */
+  scopes?: string[];
+  state?: string | null;
+}
+
+/** Corpo da recusa: o pedido original, para o `iam` conferir o retorno. */
+export interface AuthorizeDenyBody {
+  client_id: string;
+  code_challenge: string;
+  code_challenge_method: string;
+  redirect_uri: string;
+  response_type: string;
+  scope?: string | null;
+  state?: string | null;
+}
+
+/** O que a página de consentimento mostra. */
+export interface AuthorizePreviewDto {
+  app_name: string;
+  client_id: string;
+  organizations: EligibleOrganizationDto[];
+  scopes: AppScopeDto[];
+}
+
+/** Endereço de volta ao aplicativo, que a página segue. */
+export interface AuthorizeRedirectDto {
+  /** Presente só na aprovação. */
+  installation_id: string | null;
+  redirect_to: string;
 }
 
 /** Status do autorizador (resposta). */
@@ -3913,6 +3992,11 @@ export type BotPostScopeValue = "all" | "specific";
 
 /** Uma regra do Chat Bot, como volta. */
 export interface BotRule {
+  /**
+   * Conexões do Social em que a regra responde. Vazio = todas as contas;
+   * a tela mostra o nome de cada uma pelo `GET /social/connections`.
+   */
+  connection_ids: string[];
   /** Intervalo por pessoa, em minutos. */
   cooldown_minutes: number;
   /** Quando nasceu (RFC3339). */
@@ -3951,6 +4035,12 @@ export interface BotRule {
  * O `PUT` substitui TODOS os campos: campo ausente vale o padrão do contrato.
  */
 export interface BotRuleDraft {
+  /**
+   * Ids das conexões do Social em que a regra responde (até 20). Ausente ou
+   * vazio = todas as contas da organização. O `PUT` troca a lista inteira:
+   * quem só liga ou pausa reenvia a que leu.
+   */
+  connection_ids?: string[];
   /**
    * Intervalo mínimo, em minutos, entre dois disparos desta regra para a
    * mesma pessoa (1 a 10080). Ausente ou 0 = o padrão (1440).
@@ -4003,6 +4093,11 @@ export interface BotRulesPage {
 
 /** O corpo do teste de texto. */
 export interface BotTestBody {
+  /**
+   * A conta simulada (id da conexão). Ausente ou vazio = nenhuma conta:
+   * regra presa a contas não casa.
+   */
+  connection_id?: string | null;
   /** O fato simulado. Primeira versão: `comment`. */
   kind: BotTriggerValue;
   /**
@@ -7069,6 +7164,41 @@ export interface ChooseShippingBody {
    */
   option_id: string;
 }
+
+/** Uma sessao de envio em partes. */
+export interface ChunkedUploadDto {
+  /** Tipo declarado. */
+  content_type: string;
+  /** Abertura (RFC 3339). */
+  created_at: string;
+  /**
+   * Motivo estavel da falha (so em `failed`): `quota_exceeded`,
+   * `file_too_large`, `upload_failed`...
+   */
+  error_code: string;
+  /** Sessao parada ate aqui e apagada com as partes (RFC 3339). */
+  expires_at: string;
+  file: FileDto | null;
+  /** Pasta destino (vazio = raiz). */
+  folder_id: string;
+  /** Snowflake da sessao. */
+  id: string;
+  /** Nome do arquivo. */
+  name: string;
+  /** Quantas partes o arquivo tem. */
+  part_count: number;
+  /** Tamanho de toda parte menos a ultima, que leva o resto. */
+  part_size: number;
+  /** Indices (a partir de 0) ja recebidos: retomar e mandar so os outros. */
+  received_parts: number[];
+  /** Tamanho total. */
+  size_bytes: number;
+  /** Estado da sessao. */
+  status: ChunkedUploadStatus;
+}
+
+/** Estado de uma sessao de envio em partes. */
+export type ChunkedUploadStatus = "open" | "assembling" | "completed" | "failed" | "aborted";
 
 /** Um relatório de falha, já raspado no aparelho. */
 export interface ClientReport {
@@ -11633,6 +11763,14 @@ export interface DeleteFiscalPlanResultDto {
   deleted: boolean;
 }
 
+/** Resultado de apagar uma pasta. */
+export interface DeleteFolderDto {
+  /** Pastas removidas: a pedida e as subpastas dela. */
+  deleted_folders: number;
+  /** Arquivos que foram para a Lixeira (da pasta e das subpastas). */
+  trashed_files: number;
+}
+
 /** Desfecho da remoção de pasta. */
 export interface DeleteMailFolderDto {
   /** Sempre `true` quando a pasta saiu. */
@@ -12032,6 +12170,19 @@ export interface DuplicateIamThemeBody {
   copy_label?: string | null;
   /** A `version` do documento que quem grava leu. Diferente da atual: `409`. */
   expected_version: number;
+}
+
+/** Uma organização em que quem aprova tem vínculo. */
+export interface EligibleOrganizationDto {
+  /** Quem aprova tem `iam.apps.install` nela. */
+  can_install: boolean;
+  granted_scopes: string[];
+  /** Presente quando o aplicativo já está instalado nela. */
+  installation_id: string | null;
+  /** Escopos pedidos que quem aprova não tem nela. */
+  missing_scopes: string[];
+  name: string;
+  organization_id: string;
 }
 
 /** Body de `POST /v1/persons/{person_id}/emails`. */
@@ -31697,6 +31848,31 @@ export interface OAuthCallbackBody {
  */
 export type OAuthCallbackResponse = OAuthLoginOkResponse | MfaRequiredResponse | OAuthHandoffResponse;
 
+/** Erro no formato da RFC 6749 §5.2. */
+export interface OAuthErrorDto {
+  error: string;
+  error_description: string | null;
+}
+
+/**
+ * Campos do corpo do token e da revogação, em formulário ou JSON.
+ *
+ * Campo desconhecido é ignorado, como manda a RFC 6749 §3.2.
+ */
+export interface OAuthForm {
+  /** `client_secret_post`: só sem `Authorization: Basic`. */
+  client_id?: string | null;
+  /** `client_secret_post`: só sem `Authorization: Basic`. */
+  client_secret?: string | null;
+  code?: string | null;
+  code_verifier?: string | null;
+  grant_type?: string | null;
+  redirect_uri?: string | null;
+  refresh_token?: string | null;
+  token?: string | null;
+  token_type_hint?: string | null;
+}
+
 /** Corpo de `POST /v1/auth/oauth/handoff`. */
 export interface OAuthHandoffBody {
   /** Código de uso único devolvido pelo callback no hub (vida de um minuto). */
@@ -31852,6 +32028,22 @@ export interface OAuthLoginOkResponse {
   token: string;
   /** Snowflake do usuário autenticado, em texto decimal. */
   user_id: string;
+}
+
+/** Resposta de token (RFC 6749 §5.1), com a instalação. */
+export interface OAuthTokenDto {
+  /** `fzat_...`, vale `expires_in` segundos e não desliza. */
+  access_token: string;
+  expires_in: number;
+  installation_id: string;
+  organization_id: string;
+  /** `fzrt_...`, rotativo: cada uso devolve outro. */
+  refresh_token: string;
+  /** Escopos concedidos, separados por espaço. */
+  scope: string;
+  tenant_id: string;
+  /** Sempre `Bearer`. */
+  token_type: string;
 }
 
 /** Corpo da abertura de conversa (primeiro toque). */
@@ -44433,6 +44625,25 @@ export interface SsoPolicyBody {
    * entrando com senha.
    */
   sso_only: boolean;
+}
+
+/** Corpo da abertura do envio em partes. */
+export interface StartChunkedUploadBody {
+  /** Tipo do arquivo (vazio = `application/octet-stream`). */
+  content_type?: string | null;
+  /** Pasta destino (ausente = raiz do cofre). */
+  folder_id?: string | null;
+  /** Nome do arquivo (ate 255 caracteres, conferido pelo `archive`). */
+  name: string;
+  /** `organization` (padrao) | `tenant` | `people` | `owner`. */
+  scope?: string | null;
+  /**
+   * Tamanho total em bytes. Acima do teto do envio em partes: `400`
+   * com `code = file_too_large`.
+   */
+  size_bytes: number;
+  /** `private` (padrao) ou `public`. */
+  visibility?: string | null;
 }
 
 /** Corpo de abrir o login pelo navegador da casa para uma conexão. */

@@ -97,6 +97,12 @@ export interface ArchiveListSharedQuery {
   q?: string;
 }
 
+/** Query of `PUT /v1/archive/uploads/{id}/parts/{index}`. */
+export interface ArchivePutPartQuery {
+  /** SHA-256 da parte, em hex (64 digitos) */
+  sha256: string;
+}
+
 /** Query of `POST /v1/archive/files`. */
 export interface ArchiveUploadQuery {
   /** Nome do arquivo */
@@ -120,6 +126,20 @@ export interface ArchiveUploadQuery {
 /** Routes tagged `archive`. */
 export class ArchiveResource extends Resource {
   /**
+   * Cancela o envio em partes.
+   *
+   * Apaga as partes ja recebidas e libera a cota reservada.
+   *
+   * `DELETE /v1/archive/uploads/{id}`
+   *
+   * @param id ID da sessao
+   * @param options Per-call overrides.
+   */
+  abort(id: string, options?: RequestOptions): Promise<void> {
+    return this._http.request({ method: 'DELETE', path: `/v1/archive/uploads/${seg(id)}`, responseType: 'void', options });
+  }
+
+  /**
    * Concede acesso de exceção (view) a org/pessoa.
    *
    * Concessão é a exceção pontual à política: dá visualização a uma organização ou
@@ -137,6 +157,23 @@ export class ArchiveResource extends Resource {
    */
   addGrant(id: string, body: S.GrantBody, options?: RequestOptions): Promise<S.FileDto> {
     return this._http.request({ method: 'POST', path: `/v1/archive/files/${seg(id)}/grants`, body, options });
+  }
+
+  /**
+   * Conclui o envio em partes.
+   *
+   * O arquivo e montado depois da resposta, pelo mesmo caminho do upload de um
+   * corpo so (tipo real, cifra, cota conferida de novo, quarentena ate a
+   * varredura). Repetir o pedido e seguro: devolve o estado, e depois o
+   * arquivo, sem criar outro.
+   *
+   * `POST /v1/archive/uploads/{id}/complete`
+   *
+   * @param id ID da sessao
+   * @param options Per-call overrides.
+   */
+  complete(id: string, options?: RequestOptions): Promise<S.ChunkedUploadDto> {
+    return this._http.request({ method: 'POST', path: `/v1/archive/uploads/${seg(id)}/complete`, options });
   }
 
   /**
@@ -195,6 +232,22 @@ export class ArchiveResource extends Resource {
    */
   deleteFile(id: string, options?: RequestOptions): Promise<void> {
     return this._http.request({ method: 'DELETE', path: `/v1/archive/files/${seg(id)}`, responseType: 'void', options });
+  }
+
+  /**
+   * Apaga uma pasta comum.
+   *
+   * Os arquivos da pasta e das subpastas vão para a Lixeira, pelo mesmo caminho
+   * da exclusão de arquivo, e continuam restauráveis (voltam para a raiz, já que
+   * a pasta não existe mais). As pastas saem.
+   *
+   * `DELETE /v1/archive/folders/{id}`
+   *
+   * @param id ID da pasta
+   * @param options Per-call overrides.
+   */
+  deleteFolder(id: string, options?: RequestOptions): Promise<S.DeleteFolderDto> {
+    return this._http.request({ method: 'DELETE', path: `/v1/archive/folders/${seg(id)}`, options });
   }
 
   /**
@@ -290,6 +343,22 @@ export class ArchiveResource extends Resource {
    */
   getPolicies(options?: RequestOptions): Promise<S.StoragePoliciesDto> {
     return this._http.request({ method: 'GET', path: `/v1/archive/policies`, options });
+  }
+
+  /**
+   * Estado do envio em partes.
+   *
+   * Retomar depois de a rede cair: as partes de `received_parts` ja estao no
+   * servidor. Depois da conclusao, `status` sai de `assembling` para
+   * `completed` (com `file`) ou `failed` (com `error_code`).
+   *
+   * `GET /v1/archive/uploads/{id}`
+   *
+   * @param id ID da sessao
+   * @param options Per-call overrides.
+   */
+  getUpload(id: string, options?: RequestOptions): Promise<S.ChunkedUploadDto> {
+    return this._http.request({ method: 'GET', path: `/v1/archive/uploads/${seg(id)}`, options });
   }
 
   /**
@@ -674,6 +743,25 @@ export class ArchiveResource extends Resource {
   }
 
   /**
+   * Manda uma parte.
+   *
+   * A parte e conferida pelo tamanho e pelo SHA-256 antes de contar. A mesma
+   * parte de novo com o mesmo hash e aceita sem regravar; com outro hash, troca
+   * a anterior.
+   *
+   * `PUT /v1/archive/uploads/{id}/parts/{index}`
+   *
+   * @param id ID da sessao
+   * @param index Indice da parte, a partir de 0
+   * @param body Request body.
+   * @param query Query string parameters.
+   * @param options Per-call overrides.
+   */
+  putPart(id: string, index: string | number, body: Blob | ArrayBuffer | Uint8Array | ReadableStream<Uint8Array>, query: ArchivePutPartQuery, options?: RequestOptions): Promise<S.ChunkedUploadDto> {
+    return this._http.request({ method: 'PUT', path: `/v1/archive/uploads/${seg(id)}/parts/${seg(index)}`, query, body, bodyType: 'binary', options });
+  }
+
+  /**
    * Revoga uma concessão.
    *
    * Revoga uma concessão pontual pelo id dela. A política de acesso do arquivo não
@@ -847,6 +935,23 @@ export class ArchiveResource extends Resource {
    */
   setPolicy(body: S.StoragePolicyBody, options?: RequestOptions): Promise<S.StoragePolicyWriteDto> {
     return this._http.request({ method: 'PUT', path: `/v1/archive/policies`, body, options });
+  }
+
+  /**
+   * Abre um envio em partes no Files.
+   *
+   * Para arquivo grande (acima do teto do upload de um corpo so). Confere nome,
+   * pasta, teto e cota antes de qualquer byte; a cota fica reservada enquanto a
+   * sessao esta aberta. A sessao parada vence em um dia e e apagada com as
+   * partes.
+   *
+   * `POST /v1/archive/uploads`
+   *
+   * @param body Request body.
+   * @param options Per-call overrides.
+   */
+  start(body: S.StartChunkedUploadBody, options?: RequestOptions): Promise<S.ChunkedUploadDto> {
+    return this._http.request({ method: 'POST', path: `/v1/archive/uploads`, body, options });
   }
 
   /**

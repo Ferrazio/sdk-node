@@ -3971,6 +3971,132 @@
    }
   },
   "/v1/archive/folders/{id}": {
+   "delete": {
+    "tags": [
+     "archive"
+    ],
+    "summary": "`DELETE /v1/archive/folders/{id}` apaga uma pasta comum.",
+    "description": "Os arquivos da pasta e das subpastas vão para a Lixeira, pelo mesmo caminho\nda exclusão de arquivo, e continuam restauráveis (voltam para a raiz, já que\na pasta não existe mais). As pastas saem.",
+    "operationId": "archive_delete_folder",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "description": "ID da pasta",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Pasta removida; os arquivos dela e das subpastas foram para a Lixeira",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DeleteFolderDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Módulo `archive` não contratado pelo tenant/organização da sessão. Se a contratação não puder ser conferida, a resposta é 503, nunca 402..",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "O membro da sessão não tem a ação `archive.file.delete` no RBAC, ou a API key usada não a tem no escopo. O portão é fail-closed: operação fora de `` e fora das dispensas também recebe 403.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Pasta inexistente/sem acesso",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "Pasta do sistema, ou com arquivo que a pessoa nao pode mandar para a Lixeira (de outro dono ou gerenciado); nada muda",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "412": {
+      "description": "Arquivo da pasta sob trava de retencao (`code = file_retained`); nada muda",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   },
    "patch": {
     "tags": [
      "archive"
@@ -4875,6 +5001,687 @@
      },
      "503": {
       "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/archive/uploads": {
+   "post": {
+    "tags": [
+     "archive"
+    ],
+    "summary": "`POST /v1/archive/uploads`: abre um envio em partes no Files.",
+    "description": "Para arquivo grande (acima do teto do upload de um corpo so). Confere nome,\npasta, teto e cota antes de qualquer byte; a cota fica reservada enquanto a\nsessao esta aberta. A sessao parada vence em um dia e e apagada com as\npartes.",
+    "operationId": "archive_start",
+    "requestBody": {
+     "description": "Nome, tamanho, tipo e pasta do arquivo",
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StartChunkedUploadBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Sessao aberta: mandar as partes de `part_size` bytes",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ChunkedUploadDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Entrada invalida. `code`: `file_too_large` (acima do teto do envio em partes) ou `quota_exceeded` (sem espaco na cota, contando as outras sessoes abertas)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Módulo `archive` não contratado pelo tenant/organização da sessão. Se a contratação não puder ser conferida, a resposta é 503, nunca 402..",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "O membro da sessão não tem a ação `archive.file.upload` no RBAC, ou a API key usada não a tem no escopo. O portão é fail-closed: operação fora de `` e fora das dispensas também recebe 403.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Recurso inexistente no escopo do tenant/organização da sessão, **ou** sessão ausente/expirada/inválida. A borda responde 404 opaco a toda falha de autenticação por antienumeração: um 401 confirmaria ao atacante que a rota existe e exige sessão.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "413": {
+      "description": "Corpo acima do teto de payload de API, recusado pelo gateway ANTES de qualquer leitura. Não vira 422 de propósito: o servidor não desserializou nada, então não há campo a apontar. O teto de upload do cofre (`/v1/archive/files`) é outro, e maior, porque ali o corpo é o arquivo. Sai o envelope canônico com o motivo `payload_too_large`, recusado pela camada ou pelo extrator.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "415": {
+      "description": "`Content-Type: application/json` ausente ou diferente. Separado do 400 para o cliente saber o que corrigir sem ambiguidade.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Corpo desserializado mas semanticamente inválido: campo obrigatório ausente, tipo errado, campo desconhecido, ou reprovado na validação de domínio. Erros de campo vêm agregados numa mensagem só e, um por campo, em `details`.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/archive/uploads/{id}": {
+   "get": {
+    "tags": [
+     "archive"
+    ],
+    "summary": "`GET /v1/archive/uploads/{id}`: estado do envio em partes.",
+    "description": "Retomar depois de a rede cair: as partes de `received_parts` ja estao no\nservidor. Depois da conclusao, `status` sai de `assembling` para\n`completed` (com `file`) ou `failed` (com `error_code`).",
+    "operationId": "archive_get_upload",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "description": "ID da sessao",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Estado da sessao: partes recebidas, montagem e o arquivo quando pronto",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ChunkedUploadDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Módulo `archive` não contratado pelo tenant/organização da sessão. Se a contratação não puder ser conferida, a resposta é 503, nunca 402..",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "O membro da sessão não tem a ação `archive.file.upload` no RBAC, ou a API key usada não a tem no escopo. O portão é fail-closed: operação fora de `` e fora das dispensas também recebe 403.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Sessao inexistente ou de outra pessoa",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   },
+   "delete": {
+    "tags": [
+     "archive"
+    ],
+    "summary": "`DELETE /v1/archive/uploads/{id}`: cancela o envio em partes.",
+    "description": "Apaga as partes ja recebidas e libera a cota reservada.",
+    "operationId": "archive_abort",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "description": "ID da sessao",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Cancelada e partes apagadas (cancelar de novo tambem responde 204)"
+     },
+     "402": {
+      "description": "Módulo `archive` não contratado pelo tenant/organização da sessão. Se a contratação não puder ser conferida, a resposta é 503, nunca 402..",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "O membro da sessão não tem a ação `archive.file.upload` no RBAC, ou a API key usada não a tem no escopo. O portão é fail-closed: operação fora de `` e fora das dispensas também recebe 403.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Sessao inexistente ou de outra pessoa",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "Montagem em curso",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/archive/uploads/{id}/complete": {
+   "post": {
+    "tags": [
+     "archive"
+    ],
+    "summary": "`POST /v1/archive/uploads/{id}/complete`: conclui o envio em partes.",
+    "description": "O arquivo e montado depois da resposta, pelo mesmo caminho do upload de um\ncorpo so (tipo real, cifra, cota conferida de novo, quarentena ate a\nvarredura). Repetir o pedido e seguro: devolve o estado, e depois o\narquivo, sem criar outro.",
+    "operationId": "archive_complete",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "description": "ID da sessao",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "description": "Montagem pedida (`assembling`) ou ja concluida (`completed`, com `file`). Acompanhar por `GET /v1/archive/uploads/{id}`",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ChunkedUploadDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Faltam partes",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Módulo `archive` não contratado pelo tenant/organização da sessão. Se a contratação não puder ser conferida, a resposta é 503, nunca 402..",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "O membro da sessão não tem a ação `archive.file.upload` no RBAC, ou a API key usada não a tem no escopo. O portão é fail-closed: operação fora de `` e fora das dispensas também recebe 403.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Sessao inexistente ou de outra pessoa",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "Sessao cancelada",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/archive/uploads/{id}/parts/{index}": {
+   "put": {
+    "tags": [
+     "archive"
+    ],
+    "summary": "`PUT /v1/archive/uploads/{id}/parts/{index}`: manda uma parte.",
+    "description": "A parte e conferida pelo tamanho e pelo SHA-256 antes de contar. A mesma\nparte de novo com o mesmo hash e aceita sem regravar; com outro hash, troca\na anterior.",
+    "operationId": "archive_put_part",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "description": "ID da sessao",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "index",
+      "in": "path",
+      "description": "Indice da parte, a partir de 0",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "format": "int32"
+      }
+     },
+     {
+      "name": "sha256",
+      "in": "query",
+      "description": "SHA-256 da parte, em hex (64 digitos)",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "description": "Bytes da parte (corpo cru, com `Content-Length`): `part_size` bytes, a ultima com o resto",
+     "content": {
+      "application/octet-stream": {
+       "schema": {
+        "type": "string"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Parte recebida e conferida (repetir a mesma parte e idempotente)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ChunkedUploadDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Indice, tamanho ou hash que nao conferem",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Módulo `archive` não contratado pelo tenant/organização da sessão. Se a contratação não puder ser conferida, a resposta é 503, nunca 402..",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "O membro da sessão não tem a ação `archive.file.upload` no RBAC, ou a API key usada não a tem no escopo. O portão é fail-closed: operação fora de `` e fora das dispensas também recebe 403.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Sessao inexistente ou de outra pessoa",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "Sessao fora de `open` (montando, concluida ou cancelada)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "413": {
+      "description": "Parte acima de 32 MiB",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "415": {
+      "description": "`Content-Type: application/json` ausente ou diferente. Separado do 400 para o cliente saber o que corrigir sem ambiguidade.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Corpo desserializado mas semanticamente inválido: campo obrigatório ausente, tipo errado, campo desconhecido, ou reprovado na validação de domínio. Erros de campo vêm agregados numa mensagem só e, um por campo, em `details`.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
       "content": {
        "application/json": {
         "schema": {
@@ -132868,6 +133675,211 @@
     ]
    }
   },
+  "/v1/iam/apps/installations": {
+   "get": {
+    "tags": [
+     "iam · apps"
+    ],
+    "summary": "`GET /v1/iam/apps/installations` - aplicativos da organização ativa.",
+    "description": "Poucos por organização, por isso sem cursor.",
+    "operationId": "iam_apps_list_installations",
+    "responses": {
+     "200": {
+      "description": "Aplicativos instalados na organização ativa",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AppInstallationListDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Conta bloqueada pelo teste empresarial: termo ainda não assinado ou teste encerrado sem compra. O header `x-fz-account-hold` diz qual (`trial_agreement` ou `trial_ended`); só sessão e cobrança respondem até o bloqueio sair.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Sem a permissão iam.apps.manage",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Recurso inexistente no escopo do tenant/organização da sessão, **ou** sessão ausente/expirada/inválida. A borda responde 404 opaco a toda falha de autenticação por antienumeração: um 401 confirmaria ao atacante que a rota existe e exige sessão.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/iam/apps/installations/{id}": {
+   "delete": {
+    "tags": [
+     "iam · apps"
+    ],
+    "summary": "`DELETE /v1/iam/apps/installations/{id}` - desinstala.",
+    "description": "Revoga as sessões e a renovação do aplicativo, apaga o membro dele e\npublica `iam.app.installation.revoked`.",
+    "operationId": "iam_apps_delete_installation",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "description": "Id da instalação (Snowflake, em string)",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Desinstalado; `revoked=false` quando já estava",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AppUninstallDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Conta bloqueada pelo teste empresarial: termo ainda não assinado ou teste encerrado sem compra. O header `x-fz-account-hold` diz qual (`trial_agreement` ou `trial_ended`); só sessão e cobrança respondem até o bloqueio sair.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Sem a permissão iam.apps.manage",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Instalação inexistente ou de outra organização",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
   "/v1/iam/cache-grants": {
    "post": {
     "tags": [
@@ -180396,6 +181408,911 @@
       "bearer_auth": []
      }
     ]
+   }
+  },
+  "/v1/oauth/authorize": {
+   "get": {
+    "tags": [
+     "iam · apps"
+    ],
+    "summary": "`GET /v1/oauth/authorize` - valida o pedido e devolve o que a página mostra.",
+    "description": "Não grava nada. Com `redirect_uri` que não confere, a página mostra o erro\ne **não** volta ao aplicativo (RFC 6749 §4.1.2.1).",
+    "operationId": "iam_apps_authorize_preview",
+    "parameters": [
+     {
+      "name": "response_type",
+      "in": "query",
+      "description": "Sempre `code`.",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "client_id",
+      "in": "query",
+      "description": "`fzc_<slug>`.",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "redirect_uri",
+      "in": "query",
+      "description": "Igual, byte a byte, a um dos cadastrados no cliente.",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "scope",
+      "in": "query",
+      "description": "Escopos separados por espaço. Ausente pede só os obrigatórios.",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "state",
+      "in": "query",
+      "description": "Valor opaco do aplicativo, devolvido como veio.",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "code_challenge",
+      "in": "query",
+      "description": "PKCE (RFC 7636): base64url do SHA-256 do verificador.",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "code_challenge_method",
+      "in": "query",
+      "description": "Sempre `S256`.",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Pedido válido: aplicativo, escopos e organizações elegíveis",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AuthorizePreviewDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Pedido inválido (`code` = `invalid_request`, `invalid_client`, `invalid_scope`, `invalid_redirect_uri`, `unsupported_response_type`)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Conta bloqueada pelo teste empresarial: termo ainda não assinado ou teste encerrado sem compra. O header `x-fz-account-hold` diz qual (`trial_agreement` ou `trial_ended`); só sessão e cobrança respondem até o bloqueio sair.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Sessão de aplicativo ou chave de API (`code` = `human_required`)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Recurso inexistente no escopo do tenant/organização da sessão, **ou** sessão ausente/expirada/inválida. A borda responde 404 opaco a toda falha de autenticação por antienumeração: um 401 confirmaria ao atacante que a rota existe e exige sessão.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/oauth/authorize/approve": {
+   "post": {
+    "tags": [
+     "iam · apps"
+    ],
+    "summary": "`POST /v1/oauth/authorize/approve` - instala (ou amplia) na organização\nescolhida e devolve o endereço de volta com o código.",
+    "description": "O segundo fator tem de ter sido cumprido nesta sessão há no máximo 10\nminutos. O `require_step_up_mfa` já barrou a sessão sem MFA, a\nde chave de API, a de aplicativo e a fantasma; aqui se confere a janela,\npelo `issued_at` que o `iam` regrava no segundo fator.",
+    "operationId": "iam_apps_authorize_approve",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AuthorizeApproveBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Instalado; a página segue `redirect_to` (com `code` e `state`)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AuthorizeRedirectDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Pedido inválido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Conta bloqueada pelo teste empresarial: termo ainda não assinado ou teste encerrado sem compra. O header `x-fz-account-hold` diz qual (`trial_agreement` ou `trial_ended`); só sessão e cobrança respondem até o bloqueio sair.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Sem `iam.apps.install` (`install_forbidden`), escopo que quem aprova não tem (`scope_not_held`) ou sessão que não é de pessoa (`human_required`)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Recurso inexistente no escopo do tenant/organização da sessão, **ou** sessão ausente/expirada/inválida. A borda responde 404 opaco a toda falha de autenticação por antienumeração: um 401 confirmaria ao atacante que a rota existe e exige sessão.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "413": {
+      "description": "Corpo acima do teto de payload de API, recusado pelo gateway ANTES de qualquer leitura. Não vira 422 de propósito: o servidor não desserializou nada, então não há campo a apontar. O teto de upload do cofre (`/v1/archive/files`) é outro, e maior, porque ali o corpo é o arquivo. Sai o envelope canônico com o motivo `payload_too_large`, recusado pela camada ou pelo extrator.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "415": {
+      "description": "`Content-Type: application/json` ausente ou diferente. Separado do 400 para o cliente saber o que corrigir sem ambiguidade.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Corpo desserializado mas semanticamente inválido: campo obrigatório ausente, tipo errado, campo desconhecido, ou reprovado na validação de domínio. Erros de campo vêm agregados numa mensagem só e, um por campo, em `details`.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "428": {
+      "description": "Segundo fator ausente (`step_up_required`) ou de mais de 10 minutos (`mfa_not_fresh`)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/oauth/authorize/deny": {
+   "post": {
+    "tags": [
+     "iam · apps"
+    ],
+    "summary": "`POST /v1/oauth/authorize/deny` - recusa e devolve o endereço de volta.",
+    "operationId": "iam_apps_authorize_deny",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AuthorizeDenyBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "A página segue `redirect_to` (com `error=access_denied` e `state`)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AuthorizeRedirectDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Pedido inválido; a página não volta ao aplicativo",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Conta bloqueada pelo teste empresarial: termo ainda não assinado ou teste encerrado sem compra. O header `x-fz-account-hold` diz qual (`trial_agreement` ou `trial_ended`); só sessão e cobrança respondem até o bloqueio sair.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Recurso inexistente no escopo do tenant/organização da sessão, **ou** sessão ausente/expirada/inválida. A borda responde 404 opaco a toda falha de autenticação por antienumeração: um 401 confirmaria ao atacante que a rota existe e exige sessão.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "413": {
+      "description": "Corpo acima do teto de payload de API, recusado pelo gateway ANTES de qualquer leitura. Não vira 422 de propósito: o servidor não desserializou nada, então não há campo a apontar. O teto de upload do cofre (`/v1/archive/files`) é outro, e maior, porque ali o corpo é o arquivo. Sai o envelope canônico com o motivo `payload_too_large`, recusado pela camada ou pelo extrator.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "415": {
+      "description": "`Content-Type: application/json` ausente ou diferente. Separado do 400 para o cliente saber o que corrigir sem ambiguidade.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Corpo desserializado mas semanticamente inválido: campo obrigatório ausente, tipo errado, campo desconhecido, ou reprovado na validação de domínio. Erros de campo vêm agregados numa mensagem só e, um por campo, em `details`.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/oauth/installation": {
+   "get": {
+    "tags": [
+     "iam · apps"
+    ],
+    "summary": "`GET /v1/oauth/installation` - a instalação por trás do token `fzat_`.",
+    "description": "É o teste de conexão do aplicativo: escopos concedidos, organização e\nestado. O id vem da sessão, nunca do pedido.",
+    "operationId": "iam_apps_current_installation",
+    "responses": {
+     "200": {
+      "description": "A instalação do token que chama",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AppInstallationDto"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Aplicativo desinstalado (`code` = `app_installation_revoked`)",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Conta bloqueada pelo teste empresarial: termo ainda não assinado ou teste encerrado sem compra. O header `x-fz-account-hold` diz qual (`trial_agreement` ou `trial_ended`); só sessão e cobrança respondem até o bloqueio sair.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "O token não é de aplicativo",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/oauth/revoke": {
+   "post": {
+    "tags": [
+     "iam · apps"
+    ],
+    "summary": "`POST /v1/oauth/revoke` - RFC 7009.",
+    "description": "Token de renovação **desinstala** o aplicativo; token de acesso encerra só\naquela sessão.",
+    "operationId": "iam_apps_revoke",
+    "requestBody": {
+     "content": {
+      "application/x-www-form-urlencoded": {
+       "schema": {
+        "$ref": "#/components/schemas/OAuthForm"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Revogado (token desconhecido também responde 200, RFC 7009 §2.2)"
+     },
+     "400": {
+      "description": "`invalid_request`",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OAuthErrorDto"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "`invalid_client`",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OAuthErrorDto"
+        }
+       }
+      }
+     },
+     "413": {
+      "description": "Corpo acima do teto de payload de API, recusado pelo gateway ANTES de qualquer leitura. Não vira 422 de propósito: o servidor não desserializou nada, então não há campo a apontar. O teto de upload do cofre (`/v1/archive/files`) é outro, e maior, porque ali o corpo é o arquivo. Sai o envelope canônico com o motivo `payload_too_large`, recusado pela camada ou pelo extrator.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "415": {
+      "description": "`Content-Type: application/json` ausente ou diferente. Separado do 400 para o cliente saber o que corrigir sem ambiguidade.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Corpo desserializado mas semanticamente inválido: campo obrigatório ausente, tipo errado, campo desconhecido, ou reprovado na validação de domínio. Erros de campo vêm agregados numa mensagem só e, um por campo, em `details`.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/v1/oauth/signing-keys": {
+   "get": {
+    "tags": [
+     "iam · apps"
+    ],
+    "summary": "`GET /v1/oauth/signing-keys` - as chaves públicas de assinatura, para o\naplicativo instalado conferir o que a plataforma assina. Mesma leitura de\n`GET /v1/hooks/signing-keys`.",
+    "operationId": "iam_apps_list_oauth_signing_keys",
+    "responses": {
+     "200": {
+      "description": "JWKS (Ed25519/OKP) das chaves de assinatura da plataforma, as mesmas dos webhooks.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HookJwks"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sessão ausente ou inválida.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "402": {
+      "description": "Conta bloqueada pelo teste empresarial: termo ainda não assinado ou teste encerrado sem compra. O header `x-fz-account-hold` diz qual (`trial_agreement` ou `trial_ended`); só sessão e cobrança respondem até o bloqueio sair.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "O membro da sessão não tem a ação `hooks.webhook.subscription.read` no RBAC, ou a API key usada não a tem no escopo. O portão é fail-closed: operação fora de `` e fora das dispensas também recebe 403.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "Recurso inexistente no escopo do tenant/organização da sessão, **ou** sessão ausente/expirada/inválida. A borda responde 404 opaco a toda falha de autenticação por antienumeração: um 401 confirmaria ao atacante que a rota existe e exige sessão.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A leitura pode ser repetida.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "bearer_auth": []
+     }
+    ]
+   }
+  },
+  "/v1/oauth/token": {
+   "post": {
+    "tags": [
+     "iam · apps"
+    ],
+    "summary": "`POST /v1/oauth/token` - troca o código (com PKCE) ou renova.",
+    "description": "`grant_type=authorization_code` pede `code`, `redirect_uri` e\n`code_verifier`; `grant_type=refresh_token` pede `refresh_token`. A\nrenovação é rotativa: o token antigo vale mais 30 segundos e depois disso\nreusá-lo revoga a família inteira.",
+    "operationId": "iam_apps_token",
+    "requestBody": {
+     "content": {
+      "application/x-www-form-urlencoded": {
+       "schema": {
+        "$ref": "#/components/schemas/OAuthForm"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Tokens emitidos",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OAuthTokenDto"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "`invalid_request`, `invalid_grant`, `invalid_scope` ou `unsupported_grant_type`",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OAuthErrorDto"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "`invalid_client`",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/OAuthErrorDto"
+        }
+       }
+      }
+     },
+     "413": {
+      "description": "Corpo acima do teto de payload de API, recusado pelo gateway ANTES de qualquer leitura. Não vira 422 de propósito: o servidor não desserializou nada, então não há campo a apontar. O teto de upload do cofre (`/v1/archive/files`) é outro, e maior, porque ali o corpo é o arquivo. Sai o envelope canônico com o motivo `payload_too_large`, recusado pela camada ou pelo extrator.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "415": {
+      "description": "`Content-Type: application/json` ausente ou diferente. Separado do 400 para o cliente saber o que corrigir sem ambiguidade.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Corpo desserializado mas semanticamente inválido: campo obrigatório ausente, tipo errado, campo desconhecido, ou reprovado na validação de domínio. Erros de campo vêm agregados numa mensagem só e, um por campo, em `details`.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InputErrorDto"
+        }
+       }
+      }
+     },
+     "429": {
+      "description": "Rate limit da borda excedido (por usuário nas rotas autenticadas, por origem nas públicas). Aguarde e repita.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "500": {
+      "description": "Erro interno. A mensagem é canônica por construção: detalhes da falha ficam no log do servidor, nunca na resposta. Cite o `request_id` ao falar com o suporte.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "503": {
+      "description": "Dependência indisponível: serviço de destino ou de sessão fora do ar. A escrita pode ter sido gravada antes da falha: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     },
+     "504": {
+      "description": "O teto de tempo da borda estourou antes de a resposta ficar pronta (motivo `deadline_exceeded`). A operação pode ter sido concluída do outro lado: repita só com a mesma chave de idempotência, ou confira o estado antes.",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ErrorEnvelopeDto"
+        }
+       }
+      }
+     }
+    }
    }
   },
   "/v1/organization-units": {
@@ -323190,6 +325107,117 @@
      }
     }
    },
+   "AppInstallationDto": {
+    "type": "object",
+    "description": "Uma instalação de aplicativo.",
+    "required": [
+     "installation_id",
+     "client_id",
+     "app_name",
+     "tenant_id",
+     "organization_id",
+     "scopes",
+     "status",
+     "installed_by",
+     "installed_at",
+     "updated_at",
+     "revoked_at"
+    ],
+    "properties": {
+     "app_name": {
+      "type": "string"
+     },
+     "client_id": {
+      "type": "string"
+     },
+     "installation_id": {
+      "type": "string"
+     },
+     "installed_at": {
+      "type": "string",
+      "description": "RFC 3339."
+     },
+     "installed_by": {
+      "type": "string",
+      "description": "Usuário que aprovou por último."
+     },
+     "organization_id": {
+      "type": "string"
+     },
+     "revoked_at": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "Ausente enquanto ativa."
+     },
+     "scopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "status": {
+      "type": "string",
+      "description": "`active` ou `revoked`."
+     },
+     "tenant_id": {
+      "type": "string"
+     },
+     "updated_at": {
+      "type": "string"
+     }
+    }
+   },
+   "AppInstallationListDto": {
+    "type": "object",
+    "description": "Instalações da organização do contexto.",
+    "required": [
+     "items"
+    ],
+    "properties": {
+     "items": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/AppInstallationDto"
+      }
+     }
+    }
+   },
+   "AppScopeDto": {
+    "type": "object",
+    "description": "Um escopo pedido, com o texto do catálogo.",
+    "required": [
+     "action",
+     "description",
+     "required"
+    ],
+    "properties": {
+     "action": {
+      "type": "string"
+     },
+     "description": {
+      "type": "string"
+     },
+     "required": {
+      "type": "boolean",
+      "description": "Declarado obrigatório pelo aplicativo: não pode ser desmarcado."
+     }
+    }
+   },
+   "AppUninstallDto": {
+    "type": "object",
+    "description": "Resultado da desinstalação.",
+    "required": [
+     "revoked"
+    ],
+    "properties": {
+     "revoked": {
+      "type": "boolean",
+      "description": "`false` quando já estava desinstalada."
+     }
+    }
+   },
    "ApplyChargesBody": {
     "type": "object",
     "description": "Corpo para aplicar encargos (multa/juros/desconto) a um título a pagar.",
@@ -324725,6 +326753,150 @@
      "next_page_token": {
       "type": "string",
       "description": "Cursor da próxima página. Vazio = última página."
+     }
+    }
+   },
+   "AuthorizeApproveBody": {
+    "type": "object",
+    "description": "Corpo da aprovação: o pedido original, a organização e os escopos marcados.",
+    "required": [
+     "response_type",
+     "client_id",
+     "redirect_uri",
+     "code_challenge",
+     "code_challenge_method",
+     "organization_id"
+    ],
+    "properties": {
+     "client_id": {
+      "type": "string"
+     },
+     "code_challenge": {
+      "type": "string"
+     },
+     "code_challenge_method": {
+      "type": "string"
+     },
+     "organization_id": {
+      "type": "string",
+      "description": "Organização em que o aplicativo será instalado (Snowflake, em string)."
+     },
+     "redirect_uri": {
+      "type": "string"
+     },
+     "response_type": {
+      "type": "string"
+     },
+     "scope": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "scopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Escopos opcionais que quem aprova marcou. Os obrigatórios entram sempre."
+     },
+     "state": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "additionalProperties": false
+   },
+   "AuthorizeDenyBody": {
+    "type": "object",
+    "description": "Corpo da recusa: o pedido original, para o `iam` conferir o retorno.",
+    "required": [
+     "response_type",
+     "client_id",
+     "redirect_uri",
+     "code_challenge",
+     "code_challenge_method"
+    ],
+    "properties": {
+     "client_id": {
+      "type": "string"
+     },
+     "code_challenge": {
+      "type": "string"
+     },
+     "code_challenge_method": {
+      "type": "string"
+     },
+     "redirect_uri": {
+      "type": "string"
+     },
+     "response_type": {
+      "type": "string"
+     },
+     "scope": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "state": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "additionalProperties": false
+   },
+   "AuthorizePreviewDto": {
+    "type": "object",
+    "description": "O que a página de consentimento mostra.",
+    "required": [
+     "client_id",
+     "app_name",
+     "scopes",
+     "organizations"
+    ],
+    "properties": {
+     "app_name": {
+      "type": "string"
+     },
+     "client_id": {
+      "type": "string"
+     },
+     "organizations": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/EligibleOrganizationDto"
+      }
+     },
+     "scopes": {
+      "type": "array",
+      "items": {
+       "$ref": "#/components/schemas/AppScopeDto"
+      }
+     }
+    }
+   },
+   "AuthorizeRedirectDto": {
+    "type": "object",
+    "description": "Endereço de volta ao aplicativo, que a página segue.",
+    "required": [
+     "redirect_to",
+     "installation_id"
+    ],
+    "properties": {
+     "installation_id": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "Presente só na aprovação."
+     },
+     "redirect_to": {
+      "type": "string"
      }
     }
    },
@@ -328244,10 +330416,18 @@
      "next_step",
      "cooldown_minutes",
      "priority",
+     "connection_ids",
      "created_at",
      "updated_at"
     ],
     "properties": {
+     "connection_ids": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Conexões do Social em que a regra responde. Vazio = todas as contas;\na tela mostra o nome de cada uma pelo `GET /social/connections`."
+     },
      "cooldown_minutes": {
       "type": "integer",
       "format": "int32",
@@ -328331,6 +330511,14 @@
      "private_reply"
     ],
     "properties": {
+     "connection_ids": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Ids das conexões do Social em que a regra responde (até 20). Ausente ou\nvazio = todas as contas da organização. O `PUT` troca a lista inteira:\nquem só liga ou pausa reenvia a que leu.",
+      "maxItems": 40
+     },
      "cooldown_minutes": {
       "type": "integer",
       "format": "int32",
@@ -328434,6 +330622,14 @@
      "kind"
     ],
     "properties": {
+     "connection_id": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "A conta simulada (id da conexão). Ausente ou vazio = nenhuma conta:\nregra presa a contas não casa.",
+      "maxLength": 32
+     },
      "kind": {
       "$ref": "#/components/schemas/BotTriggerValue",
       "description": "O fato simulado. Primeira versão: `comment`."
@@ -336010,6 +338206,104 @@
      }
     },
     "additionalProperties": false
+   },
+   "ChunkedUploadDto": {
+    "type": "object",
+    "description": "Uma sessao de envio em partes.",
+    "required": [
+     "id",
+     "name",
+     "content_type",
+     "size_bytes",
+     "folder_id",
+     "part_size",
+     "part_count",
+     "received_parts",
+     "status",
+     "error_code",
+     "expires_at",
+     "created_at",
+     "file"
+    ],
+    "properties": {
+     "content_type": {
+      "type": "string",
+      "description": "Tipo declarado."
+     },
+     "created_at": {
+      "type": "string",
+      "description": "Abertura (RFC 3339)."
+     },
+     "error_code": {
+      "type": "string",
+      "description": "Motivo estavel da falha (so em `failed`): `quota_exceeded`,\n`file_too_large`, `upload_failed`..."
+     },
+     "expires_at": {
+      "type": "string",
+      "description": "Sessao parada ate aqui e apagada com as partes (RFC 3339)."
+     },
+     "file": {
+      "oneOf": [
+       {
+        "$ref": "#/components/schemas/FileDto",
+        "description": "O arquivo montado (so em `completed`). Nasce `pending_scan`, como todo\narquivo, ate o veredito da varredura."
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "folder_id": {
+      "type": "string",
+      "description": "Pasta destino (vazio = raiz)."
+     },
+     "id": {
+      "type": "string",
+      "description": "Snowflake da sessao."
+     },
+     "name": {
+      "type": "string",
+      "description": "Nome do arquivo."
+     },
+     "part_count": {
+      "type": "integer",
+      "format": "int32",
+      "description": "Quantas partes o arquivo tem."
+     },
+     "part_size": {
+      "type": "integer",
+      "format": "int64",
+      "description": "Tamanho de toda parte menos a ultima, que leva o resto."
+     },
+     "received_parts": {
+      "type": "array",
+      "items": {
+       "type": "integer",
+       "format": "int32"
+      },
+      "description": "Indices (a partir de 0) ja recebidos: retomar e mandar so os outros."
+     },
+     "size_bytes": {
+      "type": "integer",
+      "format": "int64",
+      "description": "Tamanho total."
+     },
+     "status": {
+      "$ref": "#/components/schemas/ChunkedUploadStatus",
+      "description": "Estado da sessao."
+     }
+    }
+   },
+   "ChunkedUploadStatus": {
+    "type": "string",
+    "description": "Estado de uma sessao de envio em partes.",
+    "enum": [
+     "open",
+     "assembling",
+     "completed",
+     "failed",
+     "aborted"
+    ]
    },
    "ClientReport": {
     "type": "object",
@@ -346970,6 +349264,26 @@
      }
     }
    },
+   "DeleteFolderDto": {
+    "type": "object",
+    "description": "Resultado de apagar uma pasta.",
+    "required": [
+     "trashed_files",
+     "deleted_folders"
+    ],
+    "properties": {
+     "deleted_folders": {
+      "type": "integer",
+      "format": "int64",
+      "description": "Pastas removidas: a pedida e as subpastas dela."
+     },
+     "trashed_files": {
+      "type": "integer",
+      "format": "int64",
+      "description": "Arquivos que foram para a Lixeira (da pasta e das subpastas)."
+     }
+    }
+   },
    "DeleteMailFolderDto": {
     "type": "object",
     "description": "Desfecho da remoção de pasta.",
@@ -347848,6 +350162,50 @@
      }
     },
     "additionalProperties": false
+   },
+   "EligibleOrganizationDto": {
+    "type": "object",
+    "description": "Uma organização em que quem aprova tem vínculo.",
+    "required": [
+     "organization_id",
+     "name",
+     "can_install",
+     "missing_scopes",
+     "granted_scopes",
+     "installation_id"
+    ],
+    "properties": {
+     "can_install": {
+      "type": "boolean",
+      "description": "Quem aprova tem `iam.apps.install` nela."
+     },
+     "granted_scopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "installation_id": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "Presente quando o aplicativo já está instalado nela."
+     },
+     "missing_scopes": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "description": "Escopos pedidos que quem aprova não tem nela."
+     },
+     "name": {
+      "type": "string"
+     },
+     "organization_id": {
+      "type": "string"
+     }
+    }
    },
    "EmailAddBody": {
     "type": "object",
@@ -397596,6 +399954,88 @@
      }
     }
    },
+   "OAuthErrorDto": {
+    "type": "object",
+    "description": "Erro no formato da RFC 6749 §5.2.",
+    "required": [
+     "error",
+     "error_description"
+    ],
+    "properties": {
+     "error": {
+      "type": "string"
+     },
+     "error_description": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    }
+   },
+   "OAuthForm": {
+    "type": "object",
+    "description": "Campos do corpo do token e da revogação, em formulário ou JSON.\n\nCampo desconhecido é ignorado, como manda a RFC 6749 §3.2.",
+    "properties": {
+     "client_id": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "`client_secret_post`: só sem `Authorization: Basic`."
+     },
+     "client_secret": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "`client_secret_post`: só sem `Authorization: Basic`."
+     },
+     "code": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "code_verifier": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "grant_type": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "redirect_uri": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "refresh_token": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "token": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "token_type_hint": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "additionalProperties": false
+   },
    "OAuthHandoffBody": {
     "type": "object",
     "description": "Corpo de `POST /v1/auth/oauth/handoff`.",
@@ -397810,6 +400250,52 @@
       "description": "Snowflake do usuário autenticado, em texto decimal.",
       "example": "43791531487657985",
       "pattern": "^[0-9]+$"
+     }
+    }
+   },
+   "OAuthTokenDto": {
+    "type": "object",
+    "description": "Resposta de token (RFC 6749 §5.1), com a instalação.",
+    "required": [
+     "access_token",
+     "token_type",
+     "expires_in",
+     "refresh_token",
+     "scope",
+     "installation_id",
+     "tenant_id",
+     "organization_id"
+    ],
+    "properties": {
+     "access_token": {
+      "type": "string",
+      "description": "`fzat_...`, vale `expires_in` segundos e não desliza."
+     },
+     "expires_in": {
+      "type": "integer",
+      "format": "int32",
+      "minimum": 0
+     },
+     "installation_id": {
+      "type": "string"
+     },
+     "organization_id": {
+      "type": "string"
+     },
+     "refresh_token": {
+      "type": "string",
+      "description": "`fzrt_...`, rotativo: cada uso devolve outro."
+     },
+     "scope": {
+      "type": "string",
+      "description": "Escopos concedidos, separados por espaço."
+     },
+     "tenant_id": {
+      "type": "string"
+     },
+     "token_type": {
+      "type": "string",
+      "description": "Sempre `Bearer`."
      }
     }
    },
@@ -427536,6 +430022,59 @@
     },
     "additionalProperties": false
    },
+   "StartChunkedUploadBody": {
+    "type": "object",
+    "description": "Corpo da abertura do envio em partes.",
+    "required": [
+     "name",
+     "size_bytes"
+    ],
+    "properties": {
+     "content_type": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "Tipo do arquivo (vazio = `application/octet-stream`).",
+      "maxLength": 255
+     },
+     "folder_id": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "Pasta destino (ausente = raiz do cofre).",
+      "maxLength": 20
+     },
+     "name": {
+      "type": "string",
+      "description": "Nome do arquivo (ate 255 caracteres, conferido pelo `archive`).",
+      "maxLength": 255,
+      "minLength": 1
+     },
+     "scope": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "`organization` (padrao) | `tenant` | `people` | `owner`."
+     },
+     "size_bytes": {
+      "type": "integer",
+      "format": "int64",
+      "description": "Tamanho total em bytes. Acima do teto do envio em partes: `400`\ncom `code = file_too_large`.",
+      "minimum": 1
+     },
+     "visibility": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "description": "`private` (padrao) ou `public`."
+     }
+    },
+    "additionalProperties": false
+   },
    "StartConnectionInstagramLoginBody": {
     "type": "object",
     "description": "Corpo de abrir o login pelo navegador da casa para uma conexão.",
@@ -445943,6 +448482,10 @@
   {
    "name": "iam · app devices",
    "description": "Aparelho do app, grant do cache offline e política da organização"
+  },
+  {
+   "name": "iam · apps",
+   "description": "Aplicativo instalado: consentimento OAuth, troca de token e gestão das instalações da organização"
   },
   {
    "name": "iam · idps",

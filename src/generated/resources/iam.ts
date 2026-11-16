@@ -380,6 +380,159 @@ export class IamAppearanceResource extends Resource {
   }
 }
 
+/** Query of `GET /v1/oauth/authorize`. */
+export interface IamAppsAuthorizePreviewQuery {
+  /** Sempre `code`. */
+  response_type: string;
+  /** `fzc_<slug>`. */
+  client_id: string;
+  /** Igual, byte a byte, a um dos cadastrados no cliente. */
+  redirect_uri: string;
+  /** Escopos separados por espaço. Ausente pede só os obrigatórios. */
+  scope?: string;
+  /** Valor opaco do aplicativo, devolvido como veio. */
+  state?: string;
+  /** PKCE (RFC 7636): base64url do SHA-256 do verificador. */
+  code_challenge: string;
+  /** Sempre `S256`. */
+  code_challenge_method: string;
+}
+
+/** Routes tagged `iam · apps`. */
+export class IamAppsResource extends Resource {
+  /**
+   * Instala (ou amplia) na organização
+   * escolhida e devolve o endereço de volta com o código.
+   *
+   * O segundo fator tem de ter sido cumprido nesta sessão há no máximo 10
+   * minutos. O `require_step_up_mfa` já barrou a sessão sem MFA, a
+   * de chave de API, a de aplicativo e a fantasma; aqui se confere a janela,
+   * pelo `issued_at` que o `iam` regrava no segundo fator.
+   *
+   * `POST /v1/oauth/authorize/approve`
+   *
+   * @param body Request body.
+   * @param options Per-call overrides.
+   */
+  authorizeApprove(body: S.AuthorizeApproveBody, options?: RequestOptions): Promise<S.AuthorizeRedirectDto> {
+    return this._http.request({ method: 'POST', path: `/v1/oauth/authorize/approve`, body, options });
+  }
+
+  /**
+   * Recusa e devolve o endereço de volta.
+   *
+   * `POST /v1/oauth/authorize/deny`
+   *
+   * @param body Request body.
+   * @param options Per-call overrides.
+   */
+  authorizeDeny(body: S.AuthorizeDenyBody, options?: RequestOptions): Promise<S.AuthorizeRedirectDto> {
+    return this._http.request({ method: 'POST', path: `/v1/oauth/authorize/deny`, body, options });
+  }
+
+  /**
+   * Valida o pedido e devolve o que a página mostra.
+   *
+   * Não grava nada. Com `redirect_uri` que não confere, a página mostra o erro
+   * e **não** volta ao aplicativo (RFC 6749 §4.1.2.1).
+   *
+   * `GET /v1/oauth/authorize`
+   *
+   * @param query Query string parameters.
+   * @param options Per-call overrides.
+   */
+  authorizePreview(query: IamAppsAuthorizePreviewQuery, options?: RequestOptions): Promise<S.AuthorizePreviewDto> {
+    return this._http.request({ method: 'GET', path: `/v1/oauth/authorize`, query, options });
+  }
+
+  /**
+   * A instalação por trás do token `fzat_`.
+   *
+   * É o teste de conexão do aplicativo: escopos concedidos, organização e
+   * estado. O id vem da sessão, nunca do pedido.
+   *
+   * `GET /v1/oauth/installation`
+   *
+   * @param options Per-call overrides.
+   */
+  currentInstallation(options?: RequestOptions): Promise<S.AppInstallationDto> {
+    return this._http.request({ method: 'GET', path: `/v1/oauth/installation`, options });
+  }
+
+  /**
+   * Desinstala.
+   *
+   * Revoga as sessões e a renovação do aplicativo, apaga o membro dele e
+   * publica `iam.app.installation.revoked`.
+   *
+   * `DELETE /v1/iam/apps/installations/{id}`
+   *
+   * @param id Id da instalação (Snowflake, em string)
+   * @param options Per-call overrides.
+   */
+  deleteInstallation(id: string, options?: RequestOptions): Promise<S.AppUninstallDto> {
+    return this._http.request({ method: 'DELETE', path: `/v1/iam/apps/installations/${seg(id)}`, options });
+  }
+
+  /**
+   * Aplicativos da organização ativa.
+   *
+   * Poucos por organização, por isso sem cursor.
+   *
+   * `GET /v1/iam/apps/installations`
+   *
+   * @param options Per-call overrides.
+   */
+  listInstallations(options?: RequestOptions): Promise<S.AppInstallationListDto> {
+    return this._http.request({ method: 'GET', path: `/v1/iam/apps/installations`, options });
+  }
+
+  /**
+   * As chaves públicas de assinatura, para o
+   * aplicativo instalado conferir o que a plataforma assina. Mesma leitura de
+   * `GET /v1/hooks/signing-keys`.
+   *
+   * `GET /v1/oauth/signing-keys`
+   *
+   * @param options Per-call overrides.
+   */
+  listOauthSigningKeys(options?: RequestOptions): Promise<S.HookJwks> {
+    return this._http.request({ method: 'GET', path: `/v1/oauth/signing-keys`, options });
+  }
+
+  /**
+   * RFC 7009.
+   *
+   * Token de renovação **desinstala** o aplicativo; token de acesso encerra só
+   * aquela sessão.
+   *
+   * `POST /v1/oauth/revoke` (public route, sent without credentials)
+   *
+   * @param body Request body.
+   * @param options Per-call overrides.
+   */
+  revoke(body: Record<string, string> | URLSearchParams, options?: RequestOptions): Promise<unknown> {
+    return this._http.request({ method: 'POST', path: `/v1/oauth/revoke`, body, bodyType: 'form', responseType: 'auto', auth: false, options });
+  }
+
+  /**
+   * Troca o código (com PKCE) ou renova.
+   *
+   * `grant_type=authorization_code` pede `code`, `redirect_uri` e
+   * `code_verifier`; `grant_type=refresh_token` pede `refresh_token`. A
+   * renovação é rotativa: o token antigo vale mais 30 segundos e depois disso
+   * reusá-lo revoga a família inteira.
+   *
+   * `POST /v1/oauth/token` (public route, sent without credentials)
+   *
+   * @param body Request body.
+   * @param options Per-call overrides.
+   */
+  token(body: Record<string, string> | URLSearchParams, options?: RequestOptions): Promise<S.OAuthTokenDto> {
+    return this._http.request({ method: 'POST', path: `/v1/oauth/token`, body, bodyType: 'form', auth: false, options });
+  }
+}
+
 /** Query of `GET /v1/persons/by-document`. */
 export interface IamCadastroFindByDocumentQuery {
   /** CPF ou CNPJ, com ou sem máscara */
@@ -2856,6 +3009,7 @@ export class IamResource extends Resource {
   readonly apiKeys = new IamApiKeysResource(this._http);
   readonly appDevices = new IamAppDevicesResource(this._http);
   readonly appearance = new IamAppearanceResource(this._http);
+  readonly apps = new IamAppsResource(this._http);
   readonly cadastro = new IamCadastroResource(this._http);
   readonly domains = new IamDomainsResource(this._http);
   readonly fiscal = new IamFiscalResource(this._http);

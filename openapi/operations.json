@@ -1,11 +1,29 @@
 [
  {
+  "method": "DELETE",
+  "path": "/v1/archive/uploads/{id}",
+  "namespace": [
+   "archive"
+  ],
+  "name": "abort",
+  "paginated": false
+ },
+ {
   "method": "POST",
   "path": "/v1/archive/files/{id}/grants",
   "namespace": [
    "archive"
   ],
   "name": "addGrant",
+  "paginated": false
+ },
+ {
+  "method": "POST",
+  "path": "/v1/archive/uploads/{id}/complete",
+  "namespace": [
+   "archive"
+  ],
+  "name": "complete",
   "paginated": false
  },
  {
@@ -33,6 +51,15 @@
    "archive"
   ],
   "name": "deleteFile",
+  "paginated": false
+ },
+ {
+  "method": "DELETE",
+  "path": "/v1/archive/folders/{id}",
+  "namespace": [
+   "archive"
+  ],
+  "name": "deleteFolder",
   "paginated": false
  },
  {
@@ -78,6 +105,15 @@
    "archive"
   ],
   "name": "getPolicies",
+  "paginated": false
+ },
+ {
+  "method": "GET",
+  "path": "/v1/archive/uploads/{id}",
+  "namespace": [
+   "archive"
+  ],
+  "name": "getUpload",
   "paginated": false
  },
  {
@@ -234,6 +270,15 @@
   "paginated": false
  },
  {
+  "method": "PUT",
+  "path": "/v1/archive/uploads/{id}/parts/{index}",
+  "namespace": [
+   "archive"
+  ],
+  "name": "putPart",
+  "paginated": false
+ },
+ {
   "method": "DELETE",
   "path": "/v1/archive/files/{id}/grants/{grant_id}",
   "namespace": [
@@ -312,6 +357,15 @@
    "archive"
   ],
   "name": "setPolicy",
+  "paginated": false
+ },
+ {
+  "method": "POST",
+  "path": "/v1/archive/uploads",
+  "namespace": [
+   "archive"
+  ],
+  "name": "start",
   "paginated": false
  },
  {
@@ -9508,6 +9562,96 @@
    "appearance"
   ],
   "name": "updateTheme",
+  "paginated": false
+ },
+ {
+  "method": "POST",
+  "path": "/v1/oauth/authorize/approve",
+  "namespace": [
+   "iam",
+   "apps"
+  ],
+  "name": "authorizeApprove",
+  "paginated": false
+ },
+ {
+  "method": "POST",
+  "path": "/v1/oauth/authorize/deny",
+  "namespace": [
+   "iam",
+   "apps"
+  ],
+  "name": "authorizeDeny",
+  "paginated": false
+ },
+ {
+  "method": "GET",
+  "path": "/v1/oauth/authorize",
+  "namespace": [
+   "iam",
+   "apps"
+  ],
+  "name": "authorizePreview",
+  "paginated": false
+ },
+ {
+  "method": "GET",
+  "path": "/v1/oauth/installation",
+  "namespace": [
+   "iam",
+   "apps"
+  ],
+  "name": "currentInstallation",
+  "paginated": false
+ },
+ {
+  "method": "DELETE",
+  "path": "/v1/iam/apps/installations/{id}",
+  "namespace": [
+   "iam",
+   "apps"
+  ],
+  "name": "deleteInstallation",
+  "paginated": false
+ },
+ {
+  "method": "GET",
+  "path": "/v1/iam/apps/installations",
+  "namespace": [
+   "iam",
+   "apps"
+  ],
+  "name": "listInstallations",
+  "paginated": false
+ },
+ {
+  "method": "GET",
+  "path": "/v1/oauth/signing-keys",
+  "namespace": [
+   "iam",
+   "apps"
+  ],
+  "name": "listOauthSigningKeys",
+  "paginated": false
+ },
+ {
+  "method": "POST",
+  "path": "/v1/oauth/revoke",
+  "namespace": [
+   "iam",
+   "apps"
+  ],
+  "name": "revoke",
+  "paginated": false
+ },
+ {
+  "method": "POST",
+  "path": "/v1/oauth/token",
+  "namespace": [
+   "iam",
+   "apps"
+  ],
+  "name": "token",
   "paginated": false
  },
  {

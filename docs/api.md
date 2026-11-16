@@ -1,21 +1,25 @@
 # Referência da API
 
 Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`).
-2300 operações. `fz` é uma instância de `Ferrazio`. Métodos com `*All` percorrem todas as páginas.
+2315 operações. `fz` é uma instância de `Ferrazio`. Métodos com `*All` percorrem todas as páginas.
 
 ## fz.archive
 
 | Método | Rota | O que faz |
 |---|---|---|
+| `abort` | `DELETE /v1/archive/uploads/{id}` | Cancela o envio em partes. |
 | `addGrant` | `POST /v1/archive/files/{id}/grants` | Concede acesso de exceção (view) a org/pessoa. |
+| `complete` | `POST /v1/archive/uploads/{id}/complete` | Conclui o envio em partes. |
 | `createFolder` | `POST /v1/archive/folders` | Cria uma pasta no cofre. |
 | `createShareLink` | `POST /v1/archive/files/{id}/share-links` | Cria um link (public/self) p/ o arquivo. |
 | `deleteFile` | `DELETE /v1/archive/files/{id}` | Remove um arquivo do cofre (o `archive` aplica a ACL de delete). |
+| `deleteFolder` | `DELETE /v1/archive/folders/{id}` | Apaga uma pasta comum. |
 | `download` | `GET /v1/archive/files/{id}` | Baixa um arquivo do cofre (bytes). O `archive` aplica a ACL. |
 | `downloadBlocked` | `GET /v1/archive/files/{id}/blocked-content` | Baixa um arquivo em quarentena, depois de a tela ter pedido a confirmação de risco. Só arquivo bloqueado passa por aqui; o comum responde 409. |
 | `forceDeleteFile` | `DELETE /v1/archive/files/{id}/force` | Força a deleção de um arquivo **gerenciado** pelo sistema. Restrito a `platform_admin`; o `archive` honra `force` independentemente do flag managed. |
 | `getFileMeta` | `GET /v1/archive/files/{id}/meta` | Metadados (com política de acesso) de um arquivo. |
 | `getPolicies` | `GET /v1/archive/policies` | A política de guarda da organização da sessão. |
+| `getUpload` | `GET /v1/archive/uploads/{id}` | Estado do envio em partes. |
 | `getUsage` | `GET /v1/archive/usage` | Quanto cada categoria de arquivo ocupa. |
 | `getVault` | `GET /v1/archive/vault` | Cofre do tenant (quota + estado). |
 | `getVaultFilesUsage` | `GET /v1/archive/vault-files/usage` | Espaço dos cofres de segredos. |
@@ -33,6 +37,7 @@ Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`
 | `listShareLinks` | `GET /v1/archive/files/{id}/share-links` | Lista os links ativos do arquivo. |
 | `moveFile` | `POST /v1/archive/files/{id}/move` | Move o arquivo para uma pasta (raiz se vazio). |
 | `purgeFile` | `DELETE /v1/archive/files/{id}/purge` | Purga definitiva (blob + metadata) de um arquivo na lixeira. Só o dono; irreversível. |
+| `putPart` | `PUT /v1/archive/uploads/{id}/parts/{index}` | Manda uma parte. |
 | `removeGrant` | `DELETE /v1/archive/files/{id}/grants/{grant_id}` | Revoga uma concessão. |
 | `renameFolder` | `PATCH /v1/archive/folders/{id}` | Renomeia uma pasta. |
 | `requestFileThaw` | `POST /v1/archive/files/{id}/thaw-request` | Pede a recuperação de um arquivo congelado. |
@@ -42,6 +47,7 @@ Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`
 | `revokeShareLink` | `DELETE /v1/archive/files/{id}/share-links/{link_id}` | Revoga um link. |
 | `setAccess` | `PUT /v1/archive/files/{id}/access` | Define visibilidade × escopo do arquivo. |
 | `setPolicy` | `PUT /v1/archive/policies` | Grava os prazos de um escopo da organização. |
+| `start` | `POST /v1/archive/uploads` | Abre um envio em partes no Files. |
 | `upload` | `POST /v1/archive/files` | Faz upload de um arquivo ao cofre (corpo = bytes; Content-Type = tipo do arquivo). |
 
 ## fz.audit
@@ -1350,6 +1356,20 @@ Gerado por `scripts/generate.ts` a partir do OpenAPI do gateway (versão `1.0.0`
 | `getThemes` | `GET /v1/iam/themes` | O documento de temas do tenant. |
 | `setOrganizationAppearance` | `PUT /v1/iam/themes/organization` | Grava a camada da organização ativa. |
 | `updateTheme` | `PUT /v1/iam/themes/{id}` | Grava o tema por cima. |
+
+## fz.iam.apps
+
+| Método | Rota | O que faz |
+|---|---|---|
+| `authorizeApprove` | `POST /v1/oauth/authorize/approve` | Instala (ou amplia) na organização escolhida e devolve o endereço de volta com o código. |
+| `authorizeDeny` | `POST /v1/oauth/authorize/deny` | Recusa e devolve o endereço de volta. |
+| `authorizePreview` | `GET /v1/oauth/authorize` | Valida o pedido e devolve o que a página mostra. |
+| `currentInstallation` | `GET /v1/oauth/installation` | A instalação por trás do token `fzat_`. |
+| `deleteInstallation` | `DELETE /v1/iam/apps/installations/{id}` | Desinstala. |
+| `listInstallations` | `GET /v1/iam/apps/installations` | Aplicativos da organização ativa. |
+| `listOauthSigningKeys` | `GET /v1/oauth/signing-keys` | As chaves públicas de assinatura, para o aplicativo instalado conferir o que a plataforma assina. Mesma leitura de `GET /v1/hooks/signing-keys`. |
+| `revoke` | `POST /v1/oauth/revoke` (pública) | RFC 7009. |
+| `token` | `POST /v1/oauth/token` (pública) | Troca o código (com PKCE) ou renova. |
 
 ## fz.iam.cadastro
 

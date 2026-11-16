@@ -1,6 +1,6 @@
 {
- "version": "7.12.0",
- "spec_sha256": "2978ce340b51f7abcc68c23c8336fbdaee8ea94ad189bcdfc693ace33134ca57",
- "openapi_min_sha256": "f549dfcecc83a84252531a92aa5543807ee3e7eead1a861a07e936406cd301e8",
+ "version": "7.13.0",
+ "spec_sha256": "338baeff871c4905711991a1909a71e61962696d1e598b52516dd15b642188a5",
+ "openapi_min_sha256": "0be25f54e920913bf522f10aa65aebb80d9f20fb64148153b72b440586a646c7",
  "edge_contract_sha256": "e93a9d7223f1ced07e068d56a87e8a279e7cdc1d11af267b4971d14d1db42539"
 }
