@@ -1,0 +1,9 @@
+# Toda mudança precisa de revisão de um mantenedor.
+* @brmorillo
+
+# Pipeline, regras do repositório e cadeia de dependências.
+/.github/ @brmorillo
+/package.json @brmorillo
+/bun.lock @brmorillo
+/bunfig.toml @brmorillo
+/scripts/ @brmorillo

@@ -1,0 +1,69 @@
+{
+  "name": "@ferrazio/sdk",
+  "version": "1.0.0",
+  "description": "Official Node.js SDK for the Ferrazio API",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ferrazio/sdk-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Ferrazio/sdk-node/issues"
+  },
+  "homepage": "https://github.com/Ferrazio/sdk-node#readme",
+  "keywords": [
+    "ferrazio",
+    "sdk",
+    "api",
+    "typescript",
+    "react-native"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json",
+    "./openapi/*": "./openapi/*"
+  },
+  "files": [
+    "dist",
+    "docs/api.md",
+    "openapi/edge-contract.json",
+    "openapi/openapi.min.json.gz",
+    "openapi/version.json",
+    "README.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "packageManager": "bun@1.4.5",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "generate": "bun scripts/generate.ts",
+    "typecheck": "tsc --noEmit",
+    "check:pins": "bun scripts/check-pins.ts",
+    "test": "bun test",
+    "build": "tsup",
+    "prepack": "bun scripts/pack-openapi.ts",
+    "prepublishOnly": "bun run typecheck && bun test && bun run build",
+    "pack:openapi": "bun scripts/pack-openapi.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "tsup": "8.5.1",
+    "typescript": "5.9.3"
+  }
+}

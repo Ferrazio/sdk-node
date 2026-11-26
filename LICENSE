@@ -1,0 +1,46 @@
+Licença de Uso do SDK Ferrazio
+
+Copyright (c) 2026 Ferrazio. Todos os direitos reservados.
+
+Este software, incluindo código-fonte, código compilado, especificações OpenAPI,
+documentação e exemplos (o "SDK"), é de propriedade exclusiva da Ferrazio. O
+fato de o código estar visível publicamente não transfere nenhum direito além dos
+descritos abaixo.
+
+1. Uso permitido. A Ferrazio concede a você uma licença limitada, não exclusiva,
+   intransferível, revogável e gratuita para instalar e usar o SDK, sem
+   modificações, exclusivamente para integrar suas aplicações com as APIs e os
+   serviços da Ferrazio.
+
+2. Restrições. Sem autorização prévia e por escrito da Ferrazio, você não pode:
+   a) copiar, modificar, adaptar ou criar obras derivadas do SDK, no todo ou em
+      parte, exceto a cópia necessária para instalá-lo como dependência;
+   b) redistribuir, publicar, sublicenciar, vender, alugar ou disponibilizar o
+      SDK a terceiros, inclusive por meio de forks, espelhos ou outros pacotes;
+   c) usar o SDK, ou qualquer parte dele, para acessar serviços que não sejam da
+      Ferrazio ou para desenvolver produto concorrente;
+   d) remover ou alterar avisos de direitos autorais ou desta licença.
+
+3. Contribuições. O repositório não aceita contribuições de código. Sugestões
+   enviadas por issues ou discussions podem ser usadas livremente pela Ferrazio,
+   sem nenhuma obrigação para com quem as enviou.
+
+4. Marcas. Esta licença não concede nenhum direito sobre o nome, as marcas ou os
+   logotipos da Ferrazio.
+
+5. Término. Esta licença termina automaticamente se você descumprir qualquer de
+   seus termos. No término, você deve parar de usar o SDK e apagar suas cópias.
+
+6. Ausência de garantias. O SDK é fornecido "no estado em que se encontra", sem
+   garantias de qualquer tipo, expressas ou implícitas, incluindo garantias de
+   comercialização, adequação a uma finalidade específica e não violação.
+
+7. Limitação de responsabilidade. Na máxima extensão permitida pela lei, a
+   Ferrazio não responde por danos diretos, indiretos, incidentais ou
+   consequentes decorrentes do uso ou da impossibilidade de uso do SDK.
+
+8. Lei aplicável. Esta licença é regida pelas leis da República Federativa do
+   Brasil.
+
+O uso dos serviços da Ferrazio também está sujeito aos termos de uso da
+plataforma.

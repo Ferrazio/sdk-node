@@ -1,0 +1,49 @@
+# Dependências e saídas de build
+node_modules/
+dist/
+coverage/
+*.tgz
+*.tsbuildinfo
+.cache/
+openapi/openapi.min.json.gz
+
+# Segredos e configuração local
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.jks
+.npmrc
+!/.npmrc.example
+id_rsa*
+id_ed25519*
+credentials*.json
+secrets*.json
+service-account*.json
+
+# Relatórios gerados por scripts locais (ex.: live-sweep)
+report*.json
+sweep*.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun-debug.log*
+
+# Editores, sistema operacional e ferramentas de agente
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+.claude/
+CLAUDE.local.md

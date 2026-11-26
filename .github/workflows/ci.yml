@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.5
+
+      - name: Versões fixadas
+        run: bun scripts/check-pins.ts
+
+      - name: Instalar (lockfile congelado, sem scripts de terceiros)
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Auditoria de dependências
+        run: bun audit --audit-level=high
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Testes
+        run: bun test
+
+      - name: Build
+        run: bun run build
+
+      - name: Conteúdo do pacote
+        run: |
+          bun run pack:openapi
+          npm pack --dry-run --json > pack.json
+          if grep -E '"path": *"(\.env|.*\.pem|.*\.key|tests/|scripts/|src/)' pack.json; then
+            echo "O pacote publicaria arquivos que não devem sair." >&2
+            exit 1
+          fi

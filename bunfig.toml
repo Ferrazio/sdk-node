@@ -1,0 +1,3 @@
+[install]
+# Toda dependência nova entra com versão exata, sem ^ ou ~.
+exact = true

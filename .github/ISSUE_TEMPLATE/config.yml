@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Dúvidas e conversas
+    url: https://github.com/Ferrazio/sdk-node/discussions
+    about: Dúvidas de uso e conversas gerais vão para as Discussions.
+  - name: Relatar vulnerabilidade
+    url: https://github.com/Ferrazio/sdk-node/security/advisories/new
+    about: Nunca relate falhas de segurança em issue pública.

@@ -1,0 +1,44 @@
+name: Bug
+description: Algo no SDK não funciona como esperado.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Não inclua chaves de API, tokens, dados de clientes, CPF ou CNPJ.** Troque por valores fictícios.
+        Falhas de segurança vão pelo relato privado, não por aqui.
+  - type: input
+    id: version
+    attributes:
+      label: Versão do SDK
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Ambiente
+      placeholder: "Node 22, Bun 1.4, React Native 0.79 (Hermes)..."
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: O que aconteceu
+      description: Inclua a mensagem de erro (método, rota e status).
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: O que era esperado
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Como reproduzir
+      description: O menor trecho de código que mostra o problema.
+      render: ts
+    validations:
+      required: true

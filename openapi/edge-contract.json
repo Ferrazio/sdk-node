@@ -1,0 +1,443 @@
+{
+  "account_hold": {
+    "allowed_routes": [
+      {
+        "prefix": true,
+        "route": "/v1/auth/"
+      },
+      {
+        "prefix": false,
+        "route": "/v1/members/me"
+      },
+      {
+        "prefix": false,
+        "route": "/v1/organizations"
+      },
+      {
+        "prefix": false,
+        "route": "/v1/me/preferences"
+      },
+      {
+        "prefix": false,
+        "route": "/v1/me/preferences/{key}"
+      },
+      {
+        "prefix": false,
+        "route": "/v1/iam/themes/active"
+      },
+      {
+        "prefix": false,
+        "route": "/v1/modules"
+      },
+      {
+        "prefix": true,
+        "route": "/v1/billing/"
+      }
+    ],
+    "reasons": [
+      "trial_agreement",
+      "trial_ended"
+    ]
+  },
+  "cors": {
+    "allowed_headers": [
+      "authorization",
+      "content-type",
+      "accept",
+      "x-organization-id",
+      "idempotency-key",
+      "x-fz-device-id",
+      "x-sign-token",
+      "x-sign-vault-ticket",
+      "x-vision-link",
+      "x-vision-device",
+      "x-meeting-guest-token"
+    ],
+    "exposed_headers": [
+      "x-fz-notify-unread",
+      "x-fz-notify-seq",
+      "x-request-id",
+      "retry-after",
+      "x-fz-module",
+      "x-fz-account-hold",
+      "x-fz-min-app-version",
+      "content-disposition"
+    ]
+  },
+  "headers": {
+    "account_hold": "x-fz-account-hold",
+    "min_app_version": "x-fz-min-app-version",
+    "request_id": "x-request-id",
+    "required_module": "x-fz-module"
+  },
+  "modules": {
+    "alternatives": [
+      {
+        "alternative": "social",
+        "module": "community",
+        "prefix": "/v1/community/mail/"
+      }
+    ],
+    "always_granted": [
+      "archive",
+      "hooks",
+      "mailer",
+      "sign"
+    ],
+    "companions": [
+      {
+        "module": "sales",
+        "route": "/v1/marketing/leads/{id}/quote"
+      },
+      {
+        "module": "social_ai",
+        "route": "/v1/community/chat/assist/conversations/{id}/summary"
+      },
+      {
+        "module": "social_ai",
+        "route": "/v1/community/chat/assist/conversations/{id}/ask"
+      },
+      {
+        "module": "social_ai",
+        "route": "/v1/community/chat/assist/conversations/{id}/reply"
+      },
+      {
+        "module": "social_ai",
+        "route": "/v1/community/chat/assist/rewrite"
+      },
+      {
+        "module": "social_ai",
+        "route": "/v1/community/chat/assist/search"
+      },
+      {
+        "module": "sign",
+        "route": "/v1/hr/signature-requests"
+      },
+      {
+        "module": "sign",
+        "route": "/v1/hr/signature-requests/{id}"
+      },
+      {
+        "module": "sign",
+        "route": "/v1/hr/signature-requests/{id}/cancel"
+      },
+      {
+        "module": "sign",
+        "route": "/v1/hr/signature-fields"
+      },
+      {
+        "module": "sales",
+        "route": "/v1/work/service-orders/{id}/quote"
+      },
+      {
+        "module": "services",
+        "route": "/v1/sales/orders/{id}/service-order"
+      }
+    ],
+    "includes": [
+      {
+        "includes": "catalog",
+        "module": "stock"
+      },
+      {
+        "includes": "sales",
+        "module": "stock"
+      },
+      {
+        "includes": "shipping",
+        "module": "stock"
+      },
+      {
+        "includes": "fiscal",
+        "module": "pay"
+      },
+      {
+        "includes": "shipping",
+        "module": "pay"
+      },
+      {
+        "includes": "social_bot",
+        "module": "social"
+      }
+    ],
+    "requires": [
+      {
+        "module": "social_bot",
+        "requires": "social"
+      },
+      {
+        "module": "social_ai",
+        "requires": "social"
+      },
+      {
+        "module": "sales",
+        "requires": "catalog"
+      },
+      {
+        "module": "production",
+        "requires": "stock"
+      }
+    ],
+    "routes": [
+      {
+        "module": "pay",
+        "prefix": "/v1/pay/"
+      },
+      {
+        "module": "pay",
+        "prefix": "/v1/checkout/"
+      },
+      {
+        "module": "archive",
+        "prefix": "/v1/archive/"
+      },
+      {
+        "module": "mailer",
+        "prefix": "/v1/mailer/"
+      },
+      {
+        "module": "hooks",
+        "prefix": "/v1/hooks/"
+      },
+      {
+        "module": "audit",
+        "prefix": "/v1/audit/"
+      },
+      {
+        "module": "reports",
+        "prefix": "/v1/reports/"
+      },
+      {
+        "module": "fiscal",
+        "prefix": "/v1/fiscal/"
+      },
+      {
+        "module": "catalog",
+        "prefix": "/v1/catalog/"
+      },
+      {
+        "module": "sales",
+        "prefix": "/v1/sales/"
+      },
+      {
+        "module": "pay",
+        "prefix": "/v1/sales/financial-config"
+      },
+      {
+        "module": "pay",
+        "prefix": "/v1/sales/orders/{id}/receivables"
+      },
+      {
+        "module": "pay",
+        "prefix": "/v1/sales/orders/{id}/checkout"
+      },
+      {
+        "module": "stock",
+        "prefix": "/v1/stock/"
+      },
+      {
+        "module": "production",
+        "prefix": "/v1/stock/production/"
+      },
+      {
+        "module": "social",
+        "prefix": "/v1/social/"
+      },
+      {
+        "module": "marketing",
+        "prefix": "/v1/social/instagram-session"
+      },
+      {
+        "module": "marketplace",
+        "prefix": "/v1/marketplace/"
+      },
+      {
+        "module": "shipping",
+        "prefix": "/v1/shipping/"
+      },
+      {
+        "module": "marketing",
+        "prefix": "/v1/marketing/"
+      },
+      {
+        "module": "social_ai",
+        "prefix": "/v1/social/ai/"
+      },
+      {
+        "module": "social_bot",
+        "prefix": "/v1/social/bot/"
+      },
+      {
+        "module": "boards",
+        "prefix": "/v1/boards/"
+      },
+      {
+        "module": "hr",
+        "prefix": "/v1/hr/"
+      },
+      {
+        "module": "hr",
+        "prefix": "/v1/me/hr/"
+      },
+      {
+        "module": "community",
+        "prefix": "/v1/community/"
+      },
+      {
+        "module": "sign",
+        "prefix": "/v1/sign/"
+      },
+      {
+        "module": "vision",
+        "prefix": "/v1/vision/"
+      },
+      {
+        "module": "projects",
+        "prefix": "/v1/work/projects"
+      },
+      {
+        "module": "services",
+        "prefix": "/v1/work/service-orders"
+      }
+    ]
+  },
+  "problems": {
+    "classes": [
+      {
+        "error": "validation",
+        "status": 422
+      },
+      {
+        "error": "not_found",
+        "status": 404
+      },
+      {
+        "error": "already_exists",
+        "status": 409
+      },
+      {
+        "error": "conflict",
+        "status": 409
+      },
+      {
+        "error": "precondition_failed",
+        "status": 412
+      },
+      {
+        "error": "unauthenticated",
+        "status": 401
+      },
+      {
+        "error": "forbidden",
+        "status": 403
+      },
+      {
+        "error": "step_up_required",
+        "status": 428
+      },
+      {
+        "error": "rate_limited",
+        "status": 429
+      },
+      {
+        "error": "payment_required",
+        "status": 402
+      },
+      {
+        "error": "unavailable",
+        "status": 503
+      },
+      {
+        "error": "internal",
+        "status": 500
+      }
+    ],
+    "edge_refusals": [
+      {
+        "code": "malformed_request",
+        "error": "validation",
+        "message": "malformed request",
+        "status": 400
+      },
+      {
+        "code": "unauthenticated",
+        "error": "unauthenticated",
+        "message": "invalid credentials",
+        "status": 401
+      },
+      {
+        "code": "forbidden",
+        "error": "forbidden",
+        "message": "forbidden",
+        "status": 403
+      },
+      {
+        "code": "not_found",
+        "error": "not_found",
+        "message": "resource not found",
+        "status": 404
+      },
+      {
+        "code": "method_not_allowed",
+        "error": "validation",
+        "message": "method not allowed for this route",
+        "status": 405
+      },
+      {
+        "code": "payload_too_large",
+        "error": "validation",
+        "message": "request payload too large",
+        "status": 413
+      },
+      {
+        "code": "unsupported_media_type",
+        "error": "validation",
+        "message": "unsupported content type",
+        "status": 415
+      },
+      {
+        "code": "validation",
+        "error": "validation",
+        "message": "invalid request",
+        "status": 422
+      },
+      {
+        "code": "app_outdated",
+        "error": "forbidden",
+        "message": "this app version is no longer supported, update it from the store",
+        "status": 426
+      },
+      {
+        "code": "rate_limited",
+        "error": "rate_limited",
+        "message": "too many requests",
+        "status": 429
+      },
+      {
+        "code": "internal",
+        "error": "internal",
+        "message": "internal error",
+        "status": 500
+      },
+      {
+        "code": "unavailable",
+        "error": "unavailable",
+        "message": "service temporarily unavailable",
+        "status": 503
+      },
+      {
+        "code": "deadline_exceeded",
+        "error": "unavailable",
+        "message": "the request took longer than the gateway allows",
+        "status": 504
+      }
+    ],
+    "unidentified": {
+      "code": "unidentified",
+      "error": "not_found",
+      "message": "resource not found",
+      "status": 404
+    }
+  },
+  "schema_version": 1
+}
